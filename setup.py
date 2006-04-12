@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Install script for the Atocha web forms library.
+Install script for the Anti-ORM library.
 """
 
 __author__ = "Martin Blais <blais@furius.ca>"
