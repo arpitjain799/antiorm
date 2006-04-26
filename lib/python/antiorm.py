@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
+# pylint: disable-msg=W0302
 
 """
 An Anti-ORM, a simple utility functions to ease the writing of SQL statements
@@ -140,6 +141,7 @@ class MormConnectionEngine(MormEngine):
     This is meant to be instantiated and set explicitly on the table classes.
     """
     def __init__( self, connection ):
+        MormEngine.__init__(self)
         self.connection = connection
 
     def getcursor( self ):
@@ -408,6 +410,7 @@ class MormConvString(MormConv):
     encoding = 'ISO-8859-1'
 
     def __init__( self, encoding=None ):
+        MormConv.__init__(self)
         if encoding:
             self.encoding = encoding
         self.sameenc = (encoding == dbapi_encoding)
@@ -1168,19 +1171,19 @@ class TestMormGlobal(TestMorm):
 
 
 def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(TestMorm("test_insert"))
-    suite.addTest(TestMorm("test_select"))
-    suite.addTest(TestMorm("test_multi_tables"))
-    suite.addTest(TestMorm("test_get"))
-    suite.addTest(TestMorm("test_update"))
-    suite.addTest(TestMorm("test_delete"))
-    suite.addTest(TestMorm("test_date"))
-    suite.addTest(TestMorm("test_conversions"))
-    suite.addTest(TestMorm("test_sequence"))
-    suite.addTest(TestMorm("test_create"))
-    suite.addTest(TestMormGlobal("test_insert"))
-    return suite
+    thesuite = unittest.TestSuite()
+    thesuite.addTest(TestMorm("test_insert"))
+    thesuite.addTest(TestMorm("test_select"))
+    thesuite.addTest(TestMorm("test_multi_tables"))
+    thesuite.addTest(TestMorm("test_get"))
+    thesuite.addTest(TestMorm("test_update"))
+    thesuite.addTest(TestMorm("test_delete"))
+    thesuite.addTest(TestMorm("test_date"))
+    thesuite.addTest(TestMorm("test_conversions"))
+    thesuite.addTest(TestMorm("test_sequence"))
+    thesuite.addTest(TestMorm("test_create"))
+    thesuite.addTest(TestMormGlobal("test_insert"))
+    return thesuite
 
 if __name__ == '__main__':
     unittest.main(defaultTest='suite')
