@@ -2,3 +2,6 @@
    TODO: antiorm
 ===================
 
+* Convert antiorm.py to be compatible with antipool, to take advantage of the
+  read-only connections.
+
