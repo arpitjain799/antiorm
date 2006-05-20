@@ -95,12 +95,12 @@ close the database connections still present in the pool::
 
 It will finalize itself automatically if you forget, but in the interpreter's
 finalization stage, which happens in a partially destroyed environment.  It is
-always safer to finalize explictly.
+always safer to finalize explicitly.
 
 Testing
 -------
 
-To run a multi-threaded simnulation program using this module, just run it
+To run a multi-threaded simulation program using this module, just run it
 directly.  The --debug option provides more verbose output of the connection
 pool behaviour.
 
@@ -322,7 +322,7 @@ class ConnectionPool(object):
 
         # Note: we could keep the pool sorted by last_released to minimize the
         # scaledown time, so that the first items in the pool are always the
-        # oldest, the most likely to be deleteable.
+        # oldest, the most likely to be deletable.
 
 
     def finalize( self ):
@@ -372,7 +372,7 @@ class ConnectionWrapperRO(object):
 
     Important: you should always try to explicitly release these objects, in
     order to minimize the number of open connections in the pool.  If you do not
-    release explicitly, the pool has to keep the connection opne.  Here is the
+    release explicitly, the pool has to keep the connection open.  Here is the
     preferred way to do this:
 
        connection = database.connection()
