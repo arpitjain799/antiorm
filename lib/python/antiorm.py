@@ -132,7 +132,20 @@ class MormEngine(object):
     connection pooling at all, it is just a way to create cursors on-the-fly.
     """
     def getcursor( self ):
+        """
+        Get a cursor for read-write operations.
+        """
         raise NotImplementedError
+
+    def getcursor_ro( self ):
+        """
+        Get a cursor for read-only operations.
+        Override this if you database/connection-pool allows optimized treatment
+        of read-only operations.
+        """
+        # By default, just delegate to the read-write enabled method.
+        return self.getcursor()
+
 
 class MormConnectionEngine(MormEngine):
     """
