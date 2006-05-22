@@ -2,6 +2,16 @@
    TODO: antiorm
 ===================
 
+antipool:
+
+* Debug error w/ maxconn.
+
 * Convert antiorm.py to be compatible with antipool, to take advantage of the
   read-only connections.
+
+* Make sure autocommit is disabled on antipool startup.
+
+* Output gnuplot graphs of acquired vs. pool size in debugging mode.
+
+* Write a test for speed.
 
