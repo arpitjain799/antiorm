@@ -172,15 +172,15 @@ class ConnectionPool(ConnectionPoolInterface):
     A pool of database connections that can be shared by a number of threads.
     """
 
-    _minconn = 5
+    _def_minconn = 5
     """The minimum number of connections to keep around."""
 
-    _maxconn = None
+    _def_maxconn = None
     """The maximum number of connections to ever allocate (None means that there
     is no limit).  When the maximum is reached, acquiring a new connection is a
     blocking operation."""
 
-    _minkeepsecs = 5 # seconds
+    _def_minkeepsecs = 5 # seconds
     """The minimum amount of seconds that we should keep connections around
     for."""
 
@@ -220,10 +220,6 @@ class ConnectionPool(ConnectionPoolInterface):
             self._log_lock = threading.Lock()
             """Lock used to serialize debug output between threads."""
 
-##             self._log_threadnames = {}
-##             """Dict of thread names to output when logging."""
-## FIXME: remove
-
         self._ro_shared = (not options.pop('disable_ro', False) and
                            dbapi.threadsafety >= 2)
         if not self._ro_shared:
@@ -237,16 +233,16 @@ class ConnectionPool(ConnectionPoolInterface):
                     "Warning: Your DBAPI module '%s' does not support sharing "
                     "connections between threads." % str(dbapi))
 
-        self._minconn = options.pop('minconn', None)
+        self._minconn = options.pop('minconn', self._def_minconn)
 
-        self._maxconn = options.pop('maxconn', None)
+        self._maxconn = options.pop('maxconn', self._def_maxconn)
         if self._maxconn is not None:
             # Reserve one of the available connections for the RO connection.
             if not self._ro_shared:
                 self._maxconn -= 1
             assert self._maxconn > 0
             
-        self._minkeepsecs = options.pop('minkeepsecs', None)
+        self._minkeepsecs = options.pop('minkeepsecs', self._def_minkeepsecs)
 
         self._user_ro = options.pop('user_readonly', None)
         """User for read-only connections.  You might want to setup different
@@ -260,6 +256,7 @@ class ConnectionPool(ConnectionPoolInterface):
         result of being collected.  This is used to trigger some kind of check
         when you forget to release some connections explicitly."""
 
+        self._isolation_level = options.pop('isolation_level', None)
 
     def ro_shared( self ):
         """
@@ -294,8 +291,12 @@ class ConnectionPool(ConnectionPoolInterface):
             params = params.copy()
             params['user'] = self._user_ro
 
-        return apply(self.dbapi.connect, (), params)
-
+        newconn = apply(self.dbapi.connect, (), params)
+        # Set the isolation level if specified in the options.
+        if self._isolation_level is not None:
+            newconn.set_isolation_level(self._isolation_level)
+        return newconn
+        
     def _close( self, conn ):
         """
         Create a new connection to the database.
@@ -313,8 +314,8 @@ class ConnectionPool(ConnectionPoolInterface):
             return conn_wrapper
         else:
             r = [conn_wrapper]
-            for i in xrange(nbcursor):
-                r.append(conn_wrapper.getcursor())
+            for i in xrange(nbcursors):
+                r.append(conn_wrapper.cursor())
             return r
 
     def _get_connection_ro( self ):
@@ -354,8 +355,6 @@ class ConnectionPool(ConnectionPoolInterface):
                 # Sanity check.
                 assert self._nbconn <= self._maxconn
 
-## FIXME: replace with 'if', it won't work, due to the implementation of
-## condition variables.
                 while not self._pool and self._nbconn == self._maxconn:
                     # Block until a connection is released.
                     self._log('Acquire (wait)  Pool: %d  / Created: %s' %
@@ -364,8 +363,9 @@ class ConnectionPool(ConnectionPoolInterface):
                     self._log('Acquire (signaled)  Pool: %d  / Created: %s' %
                               (len(self._pool), self._nbconn))
 
-                # Assert that we have a connection in the pool or that we
-                # can create a new one if needed.
+                # Assert that we have a connection in the pool or that we can
+                # create a new one if needed, i.e. what we waited for just
+                # before.  (This is now a useless sanity check.)
                 assert self._pool or self._nbconn < self._maxconn
 
             if self._pool:
@@ -436,7 +436,7 @@ class ConnectionPool(ConnectionPoolInterface):
         try:
             assert conn is not self._roconn
             self._pool.append( (conn, datetime.now()) )
-##             self._scaledown()
+            self._scaledown()
             assert self._pool or self._nbconn < self._maxconn
             self._log('Release (notify)  Pool: %d  / Created: %s' %
                       (len(self._pool), self._nbconn))
@@ -484,21 +484,20 @@ class ConnectionPool(ConnectionPoolInterface):
         # scaledown time, so that the first items in the pool are always the
         # oldest, the most likely to be deletable.
 
-
     def finalize( self ):
         """
         Close all the open connections and finalize (prepare for reuse).
         """
+        # Make sure that all connections lying about are collected before we go
+        # on.
+        gc.collect()
+
         self._roconn_lock.acquire()
         self._pool_lock.acquire()
         try:
             if not self._pool and not self._roconn:
                 assert self._nbconn == 0
                 return # Already finalized.
-
-            # Make sure that all connections lying about are collected before we go
-            # on.
-            gc.collect()
 
             # Check that all the connections have been returned to us.
             assert len(self._pool) == self._nbconn
@@ -709,10 +708,8 @@ class TestThreads(threading.Thread):
                     curs.execute("""
                       SELECT name FROM things LIMIT %s;
                       """ % random.randint(0, 5))
-                    r = []
-                    for row in curs:
-                        r.append("%s " % row[0])
-                    dbpool._log('SELECT %s\n' % ','.join(r))
+                    dbpool._log('SELECT %s\n' % ','.join(
+                        map(lambda x: x[0], curs.fetchall())))
                     self.stats.inc_ops_ro()
 
                 else:
@@ -836,6 +833,17 @@ def test():
     # Create a global object to accumulate statistics.
     stats = Stats()
 
+    up_and_down = 0
+    if up_and_down:
+        conns = []
+        for i in xrange(10):
+            conns.append(dbpool.connection())
+
+        for conn in conns:
+            conn.release()
+
+        sys.exit(0)
+
     # Create threads that operate concurrently on that table.
     threads = []
     for i in xrange(opts.threads):
@@ -858,8 +866,6 @@ def test():
         print 'Interrupted.'
         for t in threads:
             t.stop()
-    except RuntimeError:
-        sys.exit(1) # Note: this does not work. ## FIXME: remove
 
     for t in threads:
         t.join()

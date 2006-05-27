@@ -4,14 +4,11 @@
 
 antipool:
 
-* Debug error w/ maxconn.
+- prevent DELETE without a WHERE
+
 - add to script debug_unreleased option
 - test user_readonly option
 - add support for Python-2.5's with statement
-
-
-* Convert antiorm.py to be compatible with antipool, to take advantage of the
-  read-only connections.
 
 * Make sure autocommit is disabled on antipool startup.
 
