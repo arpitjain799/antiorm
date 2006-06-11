@@ -131,13 +131,13 @@ class MormEngine(object):
     Class that provides access to a network connection.  This does *not* manage
     connection pooling at all, it is just a way to create cursors on-the-fly.
     """
-    def getcursor( self ):
+    def getcursor(self):
         """
         Get a cursor for read-write operations.
         """
         raise NotImplementedError
 
-    def getcursor_ro( self ):
+    def getcursor_ro(self):
         """
         Get a cursor for read-only operations.
         Override this if you database/connection-pool allows optimized treatment
@@ -153,11 +153,11 @@ class MormConnectionEngine(MormEngine):
     connection pooling at all, it is just a way to create cursors on-the-fly.
     This is meant to be instantiated and set explicitly on the table classes.
     """
-    def __init__( self, connection ):
+    def __init__(self, connection):
         MormEngine.__init__(self)
         self.connection = connection
 
-    def getcursor( self ):
+    def getcursor(self):
         return self.connection.cursor()
 
 
@@ -202,32 +202,32 @@ class MormTable(object):
     #---------------------------------------------------------------------------
 
     @classmethod
-    def tname( cls ):
+    def tname(cls):
         assert cls.table is not None
         return cls.table
 
     @classmethod
-    def getengine( cls ):
+    def getengine(cls):
         if cls.engine is None:
             raise MormError("You must set an engine on the Morm table!")
         return cls.engine
 
     @classmethod
-    def encoder( cls, **cols ):
+    def encoder(cls, **cols):
         """
         Encode the given columns according to this class' definition.
         """
         return MormEncoder(cls, cols)
 
     @classmethod
-    def decoder( cls, cursor=None ):
+    def decoder(cls, cursor=None):
         """
         Create a decoder for the given column names.
         """
         return MormDecoder(cls, cursor)
 
     @classmethod
-    def decoder_cols( cls, *colnames, **kwds ):
+    def decoder_cols(cls, *colnames, **kwds):
         """
         Create a decoder for the given column names.
         """
@@ -235,7 +235,7 @@ class MormTable(object):
         return MormDecoder(cls, cursor, colnames)
 
     @classmethod
-    def insert( cls, condstr=None, condargs=None, cursor=None, **fields ):
+    def insert(cls, condstr=None, condargs=None, cursor=None, **fields):
         """
         Convenience method that creates an encoder and executes an insert
         statement.  Returns the encoder.
@@ -244,8 +244,8 @@ class MormTable(object):
         return enc.insert(cursor, condstr, condargs)
 
     @classmethod
-    def create( cls, condstr=None, condargs=None, pk='id', cursor=None,
-                **fields ):
+    def create(cls, condstr=None, condargs=None, pk='id', cursor=None,
+               **fields):
         """
         Convenience method that creates an encoder and executes an insert
         statement, and then fetches the data back from the database (because of
@@ -260,7 +260,7 @@ class MormTable(object):
         return cls.get(**{pk: seq, 'cursor': cursor})
 
     @classmethod
-    def update( cls, condstr=None, condargs=None, cursor=None, **fields ):
+    def update(cls, condstr=None, condargs=None, cursor=None, **fields):
         """
         Convenience method that creates an encoder and executes an update
         statement.  Returns the encoder.
@@ -269,7 +269,7 @@ class MormTable(object):
         return enc.update(cursor, condstr, condargs)
 
     @classmethod
-    def select( cls, condstr=None, condargs=None, cols=None, cursor=None ):
+    def select(cls, condstr=None, condargs=None, cols=None, cursor=None):
         """
         Convenience method that executes a select and returns an iterator for
         the results, wrapped in objects with attributes
@@ -280,7 +280,7 @@ class MormTable(object):
         return decoder.select(cursor, condstr, condargs, cls.objcls)
 
     @classmethod
-    def select_all( cls, condstr=None, condargs=None, cols=None, cursor=None ):
+    def select_all(cls, condstr=None, condargs=None, cols=None, cursor=None):
         """
         Convenience method that executes a select and returns a list of all the
         results, wrapped in objects with attributes
@@ -291,7 +291,7 @@ class MormTable(object):
         return decoder.select_all(cursor, condstr, condargs, cls.objcls)
 
     @classmethod
-    def select_one( cls, condstr=None, condargs=None, cols=None, cursor=None ):
+    def select_one(cls, condstr=None, condargs=None, cols=None, cursor=None):
         """
         Convenience method that executes a select and returns an iterator for
         the results, wrapped in objects with attributes
@@ -306,7 +306,7 @@ class MormTable(object):
         return o
 
     @classmethod
-    def get( cls, cols=None, cursor=None, default=NODEF, **constraints ):
+    def get(cls, cols=None, cursor=None, default=NODEF, **constraints):
         """
         Convenience method that gets a single object by its primary key.
         """
@@ -326,7 +326,7 @@ class MormTable(object):
         return it.next()
 
     @classmethod
-    def delete( cls, condstr=None, condargs=None, cursor=None ):
+    def delete(cls, condstr=None, condargs=None, cursor=None):
         """
         Convenience method that deletes rows with the given condition.  WARNING:
         if you do not specify any condition, this deletes all the rows in the
@@ -345,7 +345,7 @@ class MormTable(object):
         return cursor
 
     @classmethod
-    def getsequence( cls, pkseq=None, cursor=None ):
+    def getsequence(cls, pkseq=None, cursor=None):
         """
         Return a sequence number.
         This allows us to quickly get the last inserted row id.
@@ -382,14 +382,14 @@ class MormConv(object):
     """
     Base class for all automated type converters.
     """
-    def from_python( self, value ):
+    def from_python(self, value):
         """
         Convert value from Python into a type suitable for insertion in a
         database query.
         """
         return value
 
-    def to_python( self, value ):
+    def to_python(self, value):
         """
         Convert value from the type given by the database connection into a
         Python type.
@@ -406,12 +406,12 @@ class MormConvUnicode(MormConv):
     """
     Conversion between database-encoded string to unicode type.
     """
-    def from_python( self, vuni ):
+    def from_python(self, vuni):
         if isinstance(vuni, str):
             vuni = vuni.decode()
         return vuni # Keep as unicode, DBAPI takes care of encoding properly.
 
-    def to_python( self, vstr ):
+    def to_python(self, vstr):
         if vstr is not None:
             return vstr.decode(dbapi_encoding)
 
@@ -422,20 +422,20 @@ class MormConvString(MormConv):
     # Default value for the desired encoding for the string.
     encoding = 'ISO-8859-1'
 
-    def __init__( self, encoding=None ):
+    def __init__(self, encoding=None):
         MormConv.__init__(self)
         if encoding:
             self.encoding = encoding
         self.sameenc = (encoding == dbapi_encoding)
 
-    def from_python( self, vuni ):
+    def from_python(self, vuni):
         if isinstance(vuni, str):
             vuni = vuni.decode(self.encoding)
         # Send as unicode, DBAPI takes care of encoding with the appropriate
         # client encoding.
         return vuni
 
-    def to_python( self, vstr ):
+    def to_python(self, vstr):
         if vstr is not None:
             if self.sameenc:
                 return vstr
@@ -449,7 +449,7 @@ class MormEndecBase(object):
     """
     Base class for classes that accept list of tables.
     """
-    def __init__( self, tables ):
+    def __init__(self, tables):
 
         # Accept multiple formats for tables list.
         self.tables = []
@@ -463,13 +463,13 @@ class MormEndecBase(object):
         can also pass in a single table class, or a sequence of table"""
         assert self.tables
 
-    def table( self ):
+    def table(self):
         return self.tables[0].tname()
 
-    def tablenames( self ):
+    def tablenames(self):
         return ','.join(x.tname() for x in self.tables)
 
-    def getengine( self ):
+    def getengine(self):
         engine = self.tables[0].getengine()
         assert engine
         return engine
@@ -482,7 +482,7 @@ class MormDecoder(MormEndecBase):
     Decoder class that takes care of creating instances with appropriate
     attributes for a specific row.
     """
-    def __init__( self, tables, cursor=None, colnames=None ):
+    def __init__(self, tables, cursor=None, colnames=None):
         MormEndecBase.__init__(self, tables)
 
         self.colnames = colnames
@@ -495,7 +495,7 @@ class MormDecoder(MormEndecBase):
         """Cursor object, used if there is no set of columns, to figure out
         which columns we should be expecting."""
 
-    def cols( self ):
+    def cols(self):
         """
         Return a list of field names, suitable for insertion in a query.
         """
@@ -504,7 +504,7 @@ class MormDecoder(MormEndecBase):
         else:
             return ', '.join(self.colnames)
 
-    def decode( self, row, obj=None, objcls=None ):
+    def decode(self, row, obj=None, objcls=None):
         """
         Decode a row.
         """
@@ -551,7 +551,7 @@ class MormDecoder(MormEndecBase):
             setattr(obj, cname, cvalue)
         return obj
 
-    def iter( self, cursor=None, objcls=None ):
+    def iter(self, cursor=None, objcls=None):
         """
         Create an iterator on the given cursor.
         This also deals with the case where a cursor has no results.
@@ -564,7 +564,7 @@ class MormDecoder(MormEndecBase):
             assert self.cursor is cursor
         return MormDecoderIterator(self, objcls)
 
-    def _select( self, cursor=None, condstr=None, condargs=None ):
+    def _select(self, cursor=None, condstr=None, condargs=None):
         """
         Guts of the select methods.
         """
@@ -588,15 +588,15 @@ class MormDecoder(MormEndecBase):
         cursor.execute(sql, condargs)
         return cursor
 
-    def select( self, cursor=None, condstr=None, condargs=None, objcls=None ):
+    def select(self, cursor=None, condstr=None, condargs=None, objcls=None):
         """
         Execute a select statement and return an iterator for the results.
         """
         curs = self._select(cursor, condstr, condargs)
         return self.iter(curs, objcls)
 
-    def select_all( self, cursor=None, condstr=None, condargs=None,
-                    objcls=None ):
+    def select_all(self, cursor=None, condstr=None, condargs=None,
+                   objcls=None):
         """
         Execute a select statement and return all the results directly.
         """
@@ -619,17 +619,17 @@ class MormDecoderIterator(object):
     """
     Iterator for a decoder.
     """
-    def __init__( self, decoder, objcls=None ):
+    def __init__(self, decoder, objcls=None):
         self.decoder = decoder
         self.objcls = objcls
 
-    def __len__( self ):
+    def __len__(self):
         return self.decoder.cursor.rowcount
 
-    def __iter__( self ):
+    def __iter__(self):
         return self
 
-    def next( self, obj=None, objcls=None ):
+    def next(self, obj=None, objcls=None):
         if self.decoder.cursor.rowcount == 0:
             raise StopIteration
 
@@ -651,7 +651,7 @@ class MormEncoder(MormEndecBase):
     to declared table conversions.  This is mainly used to create INSERT or
     UPDATE statements.
     """
-    def __init__( self, tables, fields ):
+    def __init__(self, tables, fields):
         MormEndecBase.__init__(self, tables)
 
         self.colnames = []
@@ -673,31 +673,31 @@ class MormEncoder(MormEndecBase):
 
             self.colvalues.append(cvalue)
 
-    def cols( self ):
+    def cols(self):
         return ', '.join(self.colnames)
 
-    def values( self ):
+    def values(self):
         """
         Returns the list of converted values.
         This is useful to let DBAPI do the automatic quoting.
         """
         return self.colvalues
 
-    def plhold( self ):
+    def plhold(self):
         """
         Returns a string for holding replacement values in the query string,
         e.g.: %s, %s, %s
         """
         return ', '.join(['%s'] * len(self.colvalues))
 
-    def set( self ):
+    def set(self):
         """
         Returns a string for holding 'set values' syntax in the query string,
         e.g.: col1 = %s, col2 = %s, col3 = %s
         """
         return ', '.join(('%s = %%s' % x) for x in self.colnames)
 
-    def insert( self, cursor, condstr=None, condargs=None ):
+    def insert(self, cursor, condstr=None, condargs=None):
         """
         Execute a simple insert statement with the contained values.  You can
         only use this on a single table for now.  Note: this does not commit the
@@ -717,7 +717,7 @@ class MormEncoder(MormEndecBase):
         cursor.execute(sql, self.values() + list(condargs))
         return cursor
 
-    def update( self, cursor, condstr=None, condargs=None ):
+    def update(self, cursor, condstr=None, condargs=None):
         """
         Execute a simple update statement with the contained values.  You can
         only use this on a single table for now.  Note: this does not commit the
@@ -752,7 +752,7 @@ class TestMorm(unittest.TestCase):
     conn = None
 
 
-    def setUp( self ):
+    def setUp(self):
         # Connect to the database.
         if TestMorm.conn is None:
             import psycopg2
@@ -787,7 +787,7 @@ class TestMorm(unittest.TestCase):
         self.TestTable2 = TestTable2
 
 
-    def prepare_testdb( self ):
+    def prepare_testdb(self):
         """
         Prepare a test database.
         """
@@ -817,7 +817,7 @@ class TestMorm(unittest.TestCase):
         self.conn.commit()
 
 
-    def test_insert( self ):
+    def test_insert(self):
         """
         Test methods for encoding and for insertion.
         """
@@ -856,7 +856,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_select( self ):
+    def test_select(self):
         """
         Test methods for selecting.
         """
@@ -980,7 +980,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_get( self ):
+    def test_get(self):
         """
         Test methods for getting single objects.
         """
@@ -994,7 +994,7 @@ class TestMorm(unittest.TestCase):
         self.assertRaises(MormError, TestTable.get, id=48337)
 
 
-    def test_update( self ):
+    def test_update(self):
         """
         Test methods for modifying existing data.
         """
@@ -1041,7 +1041,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_delete( self ):
+    def test_delete(self):
         """
         Test methods for deleting.
         """
@@ -1066,7 +1066,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_date( self ):
+    def test_date(self):
         """
         Test storing and reading back a date.
         """
@@ -1090,7 +1090,7 @@ class TestMorm(unittest.TestCase):
         self.assert_(isinstance(obj.creation, datetime.date))
 
 
-    def test_conversions( self ):
+    def test_conversions(self):
         """
         Test some type conversions.
         """
@@ -1106,7 +1106,7 @@ class TestMorm(unittest.TestCase):
         self.assert_(obj.religion == u'christian'.encode('latin-1'))
 
 
-    def test_sequence( self ):
+    def test_sequence(self):
         """
         Test methods for encoding and for insertion.
         """
@@ -1128,7 +1128,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_create( self ):
+    def test_create(self):
         """
         Test methods for creation (insertion and then getting at the object).
         """
@@ -1146,7 +1146,7 @@ class TestMorm(unittest.TestCase):
         #======================================================================/
 
 
-    def test_multi_tables( self ):
+    def test_multi_tables(self):
         """
         Test query on multiple tables with conversion.
         """
@@ -1175,7 +1175,7 @@ class TestMormGlobal(TestMorm):
     Simple automated tests.
     This also acts as examples and documentation.
     """
-    def setUp( self ):
+    def setUp(self):
         TestMorm.setUp(self)
         MormTable.engine = self.TestTable.engine
         del self.TestTable.engine

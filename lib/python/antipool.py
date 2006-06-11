@@ -134,13 +134,13 @@ class ConnectionPoolInterface(object):
     Interface for a connection pool.  This is documentation for the public
     interface that you are supposed to use.
     """
-    def module( self ):
+    def module(self):
         """
         Get access to the DBAPI-2.0 module.  This is necessary for some of the
         standard objects it provides, e.g. Binary().
         """
     
-    def connection( self, nbcursors=0, readonly=False ):
+    def connection(self, nbcursors=0, readonly=False):
         """
         Acquire a connection for read an write operations.
 
@@ -153,13 +153,13 @@ class ConnectionPoolInterface(object):
         (alternatively, you can use the connection_ro() method below).
         """
 
-    def connection_ro( self, nbcursors=0 ):
+    def connection_ro(self, nbcursors=0):
         """
         Acquire a connection for read-only operations.
         See connection() for details.
         """
 
-    def finalize( self ):
+    def finalize(self):
         """
         Finalize the pool, which closes remaining open connections.
         """
@@ -184,7 +184,7 @@ class ConnectionPool(ConnectionPoolInterface):
     """The minimum amount of seconds that we should keep connections around
     for."""
 
-    def __init__( self, dbapi, options=None, **params ):
+    def __init__(self, dbapi, options=None, **params):
         """
         'dbapi': the DBAPI-2.0 module interface for creating connections.
         'minconn': the minimum number of connections to keep around.
@@ -258,20 +258,20 @@ class ConnectionPool(ConnectionPoolInterface):
 
         self._isolation_level = options.pop('isolation_level', None)
 
-    def ro_shared( self ):
+    def ro_shared(self):
         """
         Returns true if the read-only connections are shared between the
         threads.
         """
         return self._ro_shared
         
-    def module( self ):
+    def module(self):
         """
         (See base class.)
         """
         return self.dbapi
 
-    def _log( self, msg ):
+    def _log(self, msg):
         """
         Debugging information logging.
         """
@@ -281,7 +281,7 @@ class ConnectionPool(ConnectionPoolInterface):
             log_write('   [%s] %s\n' % (curthread.getName(), msg))
             self._log_lock.release()
         
-    def _create_connection( self, read_only ):
+    def _create_connection(self, read_only):
         """
         Create a new connection to the database.
         """
@@ -297,7 +297,7 @@ class ConnectionPool(ConnectionPoolInterface):
             newconn.set_isolation_level(self._isolation_level)
         return newconn
         
-    def _close( self, conn ):
+    def _close(self, conn):
         """
         Create a new connection to the database.
         """
@@ -305,7 +305,7 @@ class ConnectionPool(ConnectionPoolInterface):
         return conn.close()
 
     @staticmethod
-    def _add_cursors( conn_wrapper, nbcursors ):
+    def _add_cursors(conn_wrapper, nbcursors):
         """
         Return an appropriate value depending on the number of cursors requested
         for a connection wrapper.
@@ -318,7 +318,7 @@ class ConnectionPool(ConnectionPoolInterface):
                 r.append(conn_wrapper.cursor())
             return r
 
-    def _get_connection_ro( self ):
+    def _get_connection_ro(self):
         """
         Acquire a read-only connection.
         """
@@ -332,14 +332,14 @@ class ConnectionPool(ConnectionPoolInterface):
             self._roconn_lock.release()
         return self._roconn
 
-    def connection_ro( self, nbcursors=0 ):
+    def connection_ro(self, nbcursors=0):
         """
         (See base class.)
         """
         return self._add_cursors(
             ConnectionWrapperRO(self._get_connection_ro(), self), nbcursors)
     
-    def _acquire( self ):
+    def _acquire(self):
         """
         Acquire a connection from the pool, for read an write operations.
 
@@ -385,7 +385,7 @@ class ConnectionPool(ConnectionPoolInterface):
             self._pool_lock.release()
         return conn
 
-    def _connection_ro_crippled( self, nbcursors=0 ):
+    def _connection_ro_crippled(self, nbcursors=0):
         """
         Replacement for connection_ro() that actually uses the pool to get its
         connections.  This is used when the dbapi does not allow threads to
@@ -395,13 +395,13 @@ class ConnectionPool(ConnectionPoolInterface):
         return self._add_cursors(ConnectionWrapperCrippled(conn, self),
                                  nbcursors)
 
-    def _get_connection( self ):
+    def _get_connection(self):
         """
         Acquire a read-write connection.
         """
         return self._acquire()
 
-    def connection( self, nbcursors=0, readonly=False ):
+    def connection(self, nbcursors=0, readonly=False):
         """
         (See base class.)
         """
@@ -410,7 +410,7 @@ class ConnectionPool(ConnectionPoolInterface):
         return self._add_cursors(
             ConnectionWrapper(self._get_connection(), self), nbcursors)
 
-    def _release_ro( self, conn ):
+    def _release_ro(self, conn):
         """
         Release a reference to the read-only connection.  You should not use
         this directly, you should instead call release() or close() on the
@@ -426,7 +426,7 @@ class ConnectionPool(ConnectionPoolInterface):
         finally:
             self._roconn_lock.release()
 
-    def _release( self, conn ):
+    def _release(self, conn):
         """
         Release a reference to a read-and-write connection.
         """
@@ -449,7 +449,7 @@ class ConnectionPool(ConnectionPoolInterface):
         finally:
             self._pool_lock.release()
 
-    def _scaledown( self ):
+    def _scaledown(self):
         """
         Scale down the number of connection according to the following
         heuristic: we want keep a minimum number of extra connections in the
@@ -484,7 +484,7 @@ class ConnectionPool(ConnectionPoolInterface):
         # scaledown time, so that the first items in the pool are always the
         # oldest, the most likely to be deletable.
 
-    def finalize( self ):
+    def finalize(self):
         """
         Close all the open connections and finalize (prepare for reuse).
         """
@@ -524,13 +524,13 @@ class ConnectionPool(ConnectionPoolInterface):
             self._pool_lock.release()
 
 
-    def __del__( self ):
+    def __del__(self):
         """
         Destructor.
         """
         self.finalize()
 
-    def _getstats( self ):
+    def _getstats(self):
         """
         Return internal statistics.  This is used for producing graphs depicting
         resource requirements over time.
@@ -575,38 +575,38 @@ class ConnectionWrapperRO(object):
     for read-only operations (i.e. SELECT). See class ConnectionWrapper for the
     commit method.
     """
-    def __init__( self, conn, pool ):
+    def __init__(self, conn, pool):
         assert conn
         self._conn = conn
         self._connpool = pool
 
-    def __del__( self ):
+    def __del__(self):
         if self._conn:
             unrel = self._connpool._debug_unreleased
             if unrel:
                 unrel(self)
             self.release()
 
-    def _getconn( self ):
+    def _getconn(self):
         if self._conn is None:
             raise Error("Error: Connection already closed.")
         else:
             return self._conn
 
-    def release( self ):
+    def release(self):
         self._release_impl(self._getconn())
         self._connpool = self._conn = None
 
-    def _release_impl( self, conn ):
+    def _release_impl(self, conn):
         self._connpool._release_ro(conn)
 
-    def cursor( self ):
+    def cursor(self):
         return self._getconn().cursor()
 
-    def commit( self ):
+    def commit(self):
         raise Error("Error: You cannot commit on a read-only connection.")
 
-    def rollback( self ):
+    def rollback(self):
         return self._getconn().rollback()
 
 
@@ -615,7 +615,7 @@ class ConnectionWrapperCrippled(ConnectionWrapperRO):
     A wrapper object that releases to the pool.  It still does not provide a
     commit() method however.
     """
-    def _release_impl( self, conn ):
+    def _release_impl(self, conn):
         self._connpool._release(conn)
 
 class ConnectionWrapper(ConnectionWrapperCrippled):
@@ -623,7 +623,7 @@ class ConnectionWrapper(ConnectionWrapperCrippled):
     A wrapper object that allows write operations and provides a commit()
     method.  See ConnectionWrapperRO for more details.
     """
-    def commit( self ):
+    def commit(self):
         return self._getconn().commit()
 
 class Error(Exception):
@@ -647,16 +647,16 @@ class ConnectionPoolPoser(ConnectionPool):
     behaves as if it did.  We use this for implementing performance comparisons
     in the tests.
     """
-    def _get_connection_ro( self ):
+    def _get_connection_ro(self):
         return self._create_connection(True)
 
-    def _get_connection( self ):
+    def _get_connection(self):
         return self._create_connection(False)
         
-    def _release_ro( self, conn ):
+    def _release_ro(self, conn):
         self._close(conn)
         
-    def _release( self, conn ):
+    def _release(self, conn):
         self._close(conn)
 
 
@@ -664,35 +664,35 @@ class Stats(object):
     """
     An object that has a lock on it that you can use for mut.ex.
     """
-    def __init__( self ):
+    def __init__(self):
         self._lock = threading.Lock()
 
         self.ops_ro = 0
         self.ops_rw = 0
 
-    def inc_ops_ro( self ):
+    def inc_ops_ro(self):
         self._lock.acquire()
         self.ops_ro += 1
         self._lock.release()
         
-    def inc_ops_rw( self ):
+    def inc_ops_rw(self):
         self._lock.acquire()
         self.ops_rw += 1
         self._lock.release()
 
 class TestThreads(threading.Thread):
 
-    def __init__( self, opts, stats ):
+    def __init__(self, opts, stats):
         threading.Thread.__init__(self)
 
         self.opts = opts
         self.stats = stats
         self._stop = False
 
-    def stop( self ):
+    def stop(self):
         self._stop = True
 
-    def run( self ):
+    def run(self):
         timeout = (datetime.now() + timedelta(seconds=self.opts.timeout))
 
         while not self._stop and datetime.now() < timeout:
