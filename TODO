@@ -2,6 +2,15 @@
    TODO: antiorm
 ===================
 
+
+Renames:
+
+- MormDecoder.select() becomes MormDecoder.select_iter()
+- All methods take as first required argument the connection now.
+- decoder_cols() became decoder() and accepts a sequence or a cursor
+
+
+
 antipool:
 
 - prevent DELETE without a WHERE
