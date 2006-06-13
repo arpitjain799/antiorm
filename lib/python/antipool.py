@@ -386,7 +386,7 @@ class ConnectionPool(ConnectionPoolInterface):
         when you forget to release some connections explicitly."""
 
         self._isolation_level = options.pop('isolation_level', None)
-
+        
     def ro_shared(self):
         """
         Returns true if the read-only connections are shared between the
@@ -651,7 +651,6 @@ class ConnectionPool(ConnectionPoolInterface):
         finally:
             self._roconn_lock.release()
             self._pool_lock.release()
-
 
     def __del__(self):
         """
