@@ -264,13 +264,15 @@ class MormTable(object):
 
         cond = 'WHERE ' + ' AND '.join(cons)
         it = cls.select(conn, cond, args, cols)
-        if len(it) == 0:
-            if default is NODEF:
-                raise MormError("Object not found.")
-            else:
-                return default
-
-        return it.next()
+        try:
+            if len(it) == 0:
+                if default is NODEF:
+                    raise MormError("Object not found.")
+                else:
+                    return default
+            return it.next()
+        finally:
+            del it
 
     @classmethod
     def getsequence(cls, conn, pkseq=None):
@@ -498,9 +500,18 @@ class MormDecoder(MormEndecBase):
         # minimal and that we're going to need to access all the values.
         if obj is None:
             if objcls is not None:
+                # Use the given class if present.
                 obj = objcls()
             else:
-                obj = MormObject()
+                # Otherwise look in the list of tables, one-by-one until we find
+                # an object class to use.
+                for table in self.tables:
+                    if table.objcls is not None:
+                        obj = table.objcls()
+                        break
+                else:
+                    # Otherwise just use the default
+                    obj = MormObject()
 
         for cname, cvalue in zip(self.colnames, row):
             if '.' in cname:

@@ -76,7 +76,7 @@ them::
 
 We recommend using a try-finally form to make it exception-safe::
 
-    conn = database.connection()
+    conn = dbpool().connection()
     try:
         cursor = conn.cursor()
         ...
@@ -192,6 +192,7 @@ class ConnOp(object):
                 rv = fun(*newargs, **kwds)
             except Exception:
                 conn.rollback()
+                raise
         finally:
             conn.release()
         return rv
@@ -212,6 +213,7 @@ class ConnOp(object):
                 rv = fun(*newargs, **kwds)
             except Exception:
                 conn.rollback()
+                raise
             else:
                 # Automatically commit.
                 conn.commit()
@@ -324,6 +326,9 @@ class ConnectionPool(ConnectionPoolInterface):
         """The DBAPI-2.0 module interface."""
 
         self._params = params
+        if not params:
+            raise Error("You need to specify valid connection parameters in "
+                        "order to creat4e a connection pool.")
         """The parameters for creating a connection."""
 
         self._pool = []
@@ -346,6 +351,7 @@ class ConnectionPool(ConnectionPoolInterface):
 
         self._debug = options.pop('debug', False)
         if self._debug:
+            assert hasattr(self._debug, 'write')
             self._log_lock = threading.Lock()
             """Lock used to serialize debug output between threads."""
 
@@ -407,7 +413,7 @@ class ConnectionPool(ConnectionPoolInterface):
         if self._debug:
             self._log_lock.acquire()
             curthread = threading.currentThread()
-            log_write('   [%s] %s\n' % (curthread.getName(), msg))
+            self._debug.write('   [%s] %s\n' % (curthread.getName(), msg))
             self._log_lock.release()
         
     def _create_connection(self, read_only):
@@ -421,6 +427,7 @@ class ConnectionPool(ConnectionPoolInterface):
             params['user'] = self._user_ro
 
         newconn = apply(self.dbapi.connect, (), params)
+
         # Set the isolation level if specified in the options.
         if self._isolation_level is not None:
             newconn.set_isolation_level(self._isolation_level)
@@ -546,6 +553,13 @@ class ConnectionPool(ConnectionPoolInterface):
         connection object.
         """
         self._roconn_lock.acquire()
+
+        # Make sure a released connection is not blocking anything else.
+        # Technically this should not block anything, since the only operations
+        # that are carried out on this connection are RO, but we won't risk a
+        # deadlock because the user made an error.
+        conn.rollback()
+
         try:
             assert self._roconn
             assert conn is self._roconn
@@ -562,6 +576,10 @@ class ConnectionPool(ConnectionPoolInterface):
         self._pool_lock.acquire()
         self._log('Release (begin)  Pool: %d  / Created: %s' %
                   (len(self._pool), self._nbconn))
+
+        # Make sure a released connection is not blocking anything else.
+        conn.rollback()
+
         try:
             assert conn is not self._roconn
             self._pool.append( (conn, datetime.now()) )

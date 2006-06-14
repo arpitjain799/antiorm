@@ -182,12 +182,12 @@ def test():
         poolcls = ConnectionPoolPoser
     
     import psycopg2
-
+    
     options=dict(minconn=opts.minconn,
                  maxconn=opts.maxconn,
                  minkeepsecs=opts.minkeepsecs,
                  disable_ro=opts.disable_ro,
-                 debug=opts.debug)
+                 debug=opts.debug and sys.stderr or None)
 
     global dbpool
     dbpool = poolcls(psycopg2,
