@@ -25,6 +25,19 @@ Configuration
 The connection pool has a few configuration options.  See the constructor's
 'options' parameter for details.
 
+.. important::
+
+   Important note: By default, a connection is reserved exclusively for
+   read-only operations.  If you are running your program in single-threaded
+   mode and your code is written properly by discriminating between RO and RW
+   operations with dbpool().connection() and dbpool().connection_ro(), two
+   connections will be created!  Therefore, if you're running your program in a
+   single thread, you should always set the 'disable_ro' option to True, to
+   avoid the extra resource consumption.  Single-threaded programs could do with
+   a single RW connection just fine (unless you're specifying the
+   'user_readonly' option, this makes no difference).
+
+
 Acquiring Connections
 ---------------------
 
@@ -161,6 +174,46 @@ def initpool(pool):
     """
     global _pool_instance
     _pool_instance = pool
+
+#-------------------------------------------------------------------------------
+# Support for initializing from the command-line.
+def addopts(parser):
+    """
+    Add appropriate options on an optparse parser.
+    """
+    parser.add_option('--database', '--db', action='store',
+                      default=None,
+                      help="Database name")
+    parser.add_option('--dbuser', action='store',
+                      default=None,
+                      help="Database user")
+    parser.add_option('--dbpassword', '--dbpass', action='store',
+                      default=None,
+                      help="Database password")
+    parser.add_option('--dbhost', action='store',
+                      default='localhost',
+                      help="Database hostname")
+    parser.add_option('--dbport', action='store', type='int',
+                      default=5432,
+                      help="Database port")
+
+def initfromopts(dbapi, opts):
+    """
+    Initialize a global connection pool using the parameters parsed from the
+    command-line options.
+    """
+    params = {}
+    for pname, oname in (('database', 'database'),
+                         ('user', 'dbuser'),
+                         ('password', 'dbpassword'),
+                         ('host', 'dbhost'),
+                         ('port', 'dbport')):
+        pvalue = getattr(opts, oname, None)
+        if pvalue is not None:
+            params[pname] = pvalue
+    
+    pool = ConnectionPool(dbapi, **params)
+    initpool(pool)
 
 
 #-------------------------------------------------------------------------------
@@ -355,18 +408,21 @@ class ConnectionPool(ConnectionPoolInterface):
             self._log_lock = threading.Lock()
             """Lock used to serialize debug output between threads."""
 
-        self._ro_shared = (not options.pop('disable_ro', False) and
-                           dbapi.threadsafety >= 2)
-        if not self._ro_shared:
-            # Disable the RO connections.
-            self.connection_ro = self._connection_ro_crippled
+        disable_ro = options.pop('disable_ro', False)
+        if not disable_ro and dbapi.threadsafety < 2:
+            # Note: Configure with disable_ro to remove this warning
+            # message.
+            warnings.warn(
+                "Warning: Your DBAPI module '%s' does not support sharing "
+                "connections between threads." % str(dbapi))
 
-            if not disable_ro and dbapi.threadsafety < 2:
-                # Note: Configure with disable_ro to remove this warning
-                # message.
-                warnings.warn(
-                    "Warning: Your DBAPI module '%s' does not support sharing "
-                    "connections between threads." % str(dbapi))
+            # Disable the RO connection by force.
+            disable_ro = True 
+
+        if disable_ro:
+            # Disable create the unique RO connection.
+            self.connection_ro = self._connection_ro_crippled
+        self._ro_shared = not disable_ro
 
         self._minconn = options.pop('minconn', self._def_minconn)
 
@@ -420,7 +476,7 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         Create a new connection to the database.
         """
-        self._log('Connection Create (%s)' % read_only)
+        self._log('Connection Create%s' % (read_only and ' (READ ONLY)' or ''))
         params = self._params
         if read_only and self._user_ro:
             params = params.copy()
