@@ -606,7 +606,7 @@ class MormDecoderIterator(object):
         if objcls is None:
             objcls = self.objcls
 
-        row = self.cursor.next()
+        row = self.cursor.fetchone()
         if row is None:
             raise StopIteration
         else:
