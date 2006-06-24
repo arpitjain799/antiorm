@@ -108,6 +108,11 @@ antiorm tables with ConnOp(...)  and call the same methods on them minus the
 connection parameter.  The calls automatically acquire and release a connection
 object, and commit if relevant.
 
+Convenience Decorators
+~~~~~~~~~~~~~~~~~~~~~~
+
+There are also ``@connected`` and ``@connected_ro`` decorators that can be used
+to add a 'conn' parameter to functions, in a spirit similar to ConnOp.
 
 Finalization
 ------------
@@ -308,6 +313,42 @@ class ConnOp(object):
 
     def delete(self, *args, **kwds):
         return self._run_with_conn('delete', *args, **kwds)
+
+#-------------------------------------------------------------------------------
+# Decorators
+
+def connected_ro(fun):
+    """
+    Decorator that fetches a connection and that outputs a database error
+    appropriately.  This passed a connection as one of the keyword arguments
+    under the name 'conn'.
+    """
+    def wfun(*args, **kwds):
+        conn = dbpool().connection_ro()
+        try:
+            assert 'conn' not in kwds
+            kwds['conn'] = conn
+            return fun(*args, **kwds)
+        finally:
+            conn.release()
+    return wfun
+
+def connected(fun):
+    """
+    Decorator, similar to connected_ro() but that passes a RW connection and
+    that commits automatically.
+    """
+    def wfun(*args, **kwds):
+        conn = dbpool().connection()
+        try:
+            assert 'conn' not in kwds
+            kwds['conn'] = conn
+            r = fun(*args, **kwds)
+            conn.commit()
+            return r
+        finally:
+            conn.release()
+    return wfun
 
 
 
