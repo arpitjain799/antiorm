@@ -550,7 +550,7 @@ class MormDecoder(MormEndecBase):
     #---------------------------------------------------------------------------
 
     @staticmethod
-    def do_select(conn, tables, colnames=None, cond=None, args=None):
+    def do_select(conn, tables, colnames=None, cond=None, condargs=None):
         """
         Guts of the select methods.  You need to pass in a valid connection
         'conn'.  This returns a new cursor from the given connection.
@@ -566,10 +566,10 @@ class MormDecoder(MormEndecBase):
 
         if cond is None:
             cond = ''
-        if args is None:
-            args = []
+        if condargs is None:
+            condargs = []
         else:
-            assert isinstance(args, (tuple, list))
+            assert isinstance(condargs, (tuple, list))
 
         assert conn is not None
 
@@ -578,7 +578,7 @@ class MormDecoder(MormEndecBase):
 
         sql = "SELECT %s FROM %s %s" % (', '.join(colnames),
                                         tablenames, cond)
-        cursor.execute(sql, args)
+        cursor.execute(sql, condargs)
 
         return cursor
 
