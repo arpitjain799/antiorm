@@ -184,21 +184,22 @@ class MormTable(object):
     # Methods that only read from the connection
 
     @classmethod
-    def count(cls, conn, cond=None, args=None):
+    def count(cls, conn, cond=None, args=None, distinct=None):
         """
         Counts the number of selected rows.
         """
         assert conn is not None
 
         # Perform the select.
-        cursor = MormDecoder.do_select(conn, (cls,), ('1',), cond, args)
+        cursor = MormDecoder.do_select(conn, (cls,), ('1',),
+                                       cond, args, distinct)
 
         # Return the number of matches.
         return cursor.rowcount
 
     @classmethod
     def select(cls, conn, cond=None, args=None, cols=None,
-               objcls=None):
+               objcls=None, distinct=None):
         """
         Convenience method that executes a select and returns an iterator for
         the results, wrapped in objects with attributes
@@ -206,7 +207,8 @@ class MormTable(object):
         assert conn is not None
 
         # Perform the select.
-        cursor = MormDecoder.do_select(conn, (cls,), cols, cond, args)
+        cursor = MormDecoder.do_select(conn, (cls,), cols,
+                                       cond, args, distinct)
 
         # Create a decoder using the description on the cursor.
         dec = MormDecoder(cls, cursor)
@@ -216,7 +218,7 @@ class MormTable(object):
 
     @classmethod
     def select_all(cls, conn, cond=None, args=None, cols=None,
-                   objcls=None):
+                   objcls=None, distinct=None):
         """
         Convenience method that executes a select and returns a list of all the
         results, wrapped in objects with attributes
@@ -224,7 +226,8 @@ class MormTable(object):
         assert conn is not None
 
         # Perform the select.
-        cursor = MormDecoder.do_select(conn, (cls,), cols, cond, args)
+        cursor = MormDecoder.do_select(conn, (cls,), cols,
+                                       cond, args, distinct)
 
         # Create a decoder using the description on the cursor.
         dec = MormDecoder(cls, cursor)
@@ -238,12 +241,12 @@ class MormTable(object):
 
     @classmethod
     def select_one(cls, conn, cond=None, args=None, cols=None,
-                   objcls=None):
+                   objcls=None, distinct=None):
         """
         Convenience method that executes a select the first object that matches,
         and that also checks that there is a single object that matches.
         """
-        it = cls.select(conn, cond, args, cols, objcls)
+        it = cls.select(conn, cond, args, cols, objcls, distinct)
         if len(it) > 1:
             raise MormError("select_one() matches more than one row.")
         try:
@@ -302,6 +305,22 @@ class MormTable(object):
 
     #---------------------------------------------------------------------------
     # Methods that write to the connection
+
+    @classmethod
+    def execute(cls, conn, query, args=None, objcls=None):
+        """
+        Execute an arbitrary read-write SQL statement and return a decoder for
+        the results.
+        """
+        assert conn
+        cursor = conn.cursor()
+        cursor.execute(query, args)
+        
+        # Get a decoder with the cursor results.
+        dec = MormDecoder(cls, cursor)
+
+        # Return an iterator over the cursor.
+        return dec.iter(cursor, objcls)
 
     @classmethod
     def insert(cls, conn, cond=None, args=None, **fields):
@@ -550,7 +569,8 @@ class MormDecoder(MormEndecBase):
     #---------------------------------------------------------------------------
 
     @staticmethod
-    def do_select(conn, tables, colnames=None, cond=None, condargs=None):
+    def do_select(conn, tables, colnames=None, cond=None, condargs=None,
+                  distinct=None):
         """
         Guts of the select methods.  You need to pass in a valid connection
         'conn'.  This returns a new cursor from the given connection.
@@ -576,8 +596,9 @@ class MormDecoder(MormEndecBase):
         # Run the query.
         cursor = conn.cursor()
 
-        sql = "SELECT %s FROM %s %s" % (', '.join(colnames),
-                                        tablenames, cond)
+        distinct = distinct and 'DISTINCT' or ''
+        sql = "SELECT %s %s FROM %s %s" % (distinct, ', '.join(colnames),
+                                           tablenames, cond)
         cursor.execute(sql, condargs)
 
         return cursor
