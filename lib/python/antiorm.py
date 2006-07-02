@@ -589,7 +589,7 @@ class MormDecoder(MormEndecBase):
         if condargs is None:
             condargs = []
         else:
-            assert isinstance(condargs, (tuple, list))
+            assert isinstance(condargs, (tuple, list, dict))
 
         assert conn is not None
 
