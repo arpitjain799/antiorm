@@ -3,25 +3,37 @@
 ===================
 
 
-Renames:
-
-- MormDecoder.select() becomes MormDecoder.select_iter()
-- All methods take as first required argument the connection now.
-- decoder_cols() became decoder() and accepts a sequence or a cursor
-
-
-
 antipool:
 
-- prevent DELETE without a WHERE
+- Explain in more detail what happens if the DB server gets restarted and while
+  some connections had been allocated.  Are they cleared properly?
 
-- add to script debug_unreleased option
-- test user_readonly option
-- add support for Python-2.5's with statement
+  See DBUtils:
 
-* Make sure autocommit is disabled on antipool startup.
+    DBUtils.SolidDB is a module implementing "hardened" connections to a database,
+    based on ordinary connections made by any DB-API 2 database module. A
+    "hardened" connection will transparently reopen upon access when it has been
+    closed or the database connection has been lost or when it is used more often
+    than an optional usage limit.
 
-* Output gnuplot graphs of acquired vs. pool size in debugging mode.
+    A typical example where this is needed is when the database has been restarted
+    while your application is still running and has open connections to the
+    database, or when your application accesses a remote database in a network
+    that is separated by a firewall and the firewall has been restarted and lost
+    its state.
 
-* Write a test for speed.
+- Prevent DELETE without a WHERE
+
+- Add to script debug_unreleased option
+
+- Test user_readonly option
+
+- Add support for Python-2.5's with statement
+
+- Make sure autocommit is disabled on antipool startup.
+
+- Output gnuplot graphs of acquired vs. pool size in debugging mode.
+
+- Write a better test for speed.
+
 
