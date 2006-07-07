@@ -239,7 +239,7 @@ def test():
         while time.time() - time_a < opts.timeout:
             time.sleep(opts.time_stats)
             if opts.graph:
-                opts.graph.write('%d %d\n' % dbpool._getstats())
+                opts.graph.write('%d %d\n' % dbpool.getstats())
     except KeyboardInterrupt:
         print 'Interrupted.'
         for t in threads:

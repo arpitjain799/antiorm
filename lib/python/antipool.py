@@ -651,18 +651,28 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         self._roconn_lock.acquire()
 
-        # Make sure a released connection is not blocking anything else.
-        # Technically this should not block anything, since the only operations
-        # that are carried out on this connection are RO, but we won't risk a
-        # deadlock because the user made an error.
-        conn.rollback()
-
         try:
-            assert self._roconn
-            assert conn is self._roconn
+            if conn is self._roconn:
+                assert self._roconn
 
-            self._roconn_refs -= 1
-            self._log('Release RO')
+                self._roconn_refs -= 1
+                self._log('Release RO')
+
+                # Make sure a released connection is not blocking anything else, so
+                # rollback.  Technically this should not block anything, since the
+                # only operations that are carried out on this connection are RO,
+                # but we won't risk a deadlock because the user made a programming
+                # error.
+                try:
+                    conn.rollback()
+                except self.dbapi.Error:
+                    # This connection is hosed somehow, we should ditch it.
+                    self._log('Ditching hosed RO connection: %s', conn)
+                    self._roconn = None
+                    self._roconn_refs = 0
+            else:
+                # Ignored the release of other hosed connections.
+                self._log('Hosed connection %s released after ditched.' % conn)
         finally:
             self._roconn_lock.release()
 
@@ -671,14 +681,21 @@ class ConnectionPool(ConnectionPoolInterface):
         Release a reference to a read-and-write connection.
         """
         self._pool_lock.acquire()
-        self._log('Release (begin)  Pool: %d  / Created: %s' %
-                  (len(self._pool), self._nbconn))
-
-        # Make sure a released connection is not blocking anything else.
-        conn.rollback()
-
         try:
-            assert conn is not self._roconn
+            self._log('Release (begin)  Pool: %d  / Created: %s' %
+                      (len(self._pool), self._nbconn))
+
+            # Make sure a released connection is not blocking anything else.
+            try:
+                conn.rollback()
+            except self.dbapi.Error:
+                # Oopsy, this connection is hosed somehow.  We need to ditch it.
+                self._log('Ditching hosed connection: %s' % conn)
+                conn = None
+                return
+
+            assert conn is not self._roconn # Sanity check.
+
             self._pool.append( (conn, datetime.now()) )
             self._scaledown()
             assert self._pool or self._nbconn < self._maxconn
@@ -773,10 +790,11 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         self.finalize()
 
-    def _getstats(self):
+    def getstats(self):
         """
         Return internal statistics.  This is used for producing graphs depicting
-        resource requirements over time.
+        resource requirements over time.  Returns the pool size and total number
+        of connections.
         """
         total_conn = 0
         self._roconn_lock.acquire()
