@@ -409,6 +409,9 @@ class ConnectionPool(ConnectionPoolInterface):
     """The minimum amount of seconds that we should keep connections around
     for."""
 
+    _def_disable_rollback = False
+    """Should we disable the rollback on released connections?"""
+
     def __init__(self, dbapi, options=None, **params):
         """
         'dbapi': the DBAPI-2.0 module interface for creating connections.
@@ -475,6 +478,9 @@ class ConnectionPool(ConnectionPoolInterface):
             assert self._maxconn > 0
             
         self._minkeepsecs = options.pop('minkeepsecs', self._def_minkeepsecs)
+
+        self._disable_rollback = options.pop('disable_rollback',
+                                             self._def_disable_rollback)
 
         self._user_ro = options.pop('user_readonly', None)
         """User for read-only connections.  You might want to setup different
@@ -664,7 +670,8 @@ class ConnectionPool(ConnectionPoolInterface):
                 # but we won't risk a deadlock because the user made a programming
                 # error.
                 try:
-                    conn.rollback()
+                    if not self._disable_rollback:
+                        conn.rollback()
                 except self.dbapi.Error:
                     # This connection is hosed somehow, we should ditch it.
                     self._log('Ditching hosed RO connection: %s', conn)
@@ -687,7 +694,8 @@ class ConnectionPool(ConnectionPoolInterface):
 
             # Make sure a released connection is not blocking anything else.
             try:
-                conn.rollback()
+                if not self._disable_rollback:
+                    conn.rollback()
             except self.dbapi.Error:
                 # Oopsy, this connection is hosed somehow.  We need to ditch it.
                 self._log('Ditching hosed connection: %s' % conn)
