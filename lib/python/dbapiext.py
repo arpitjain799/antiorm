@@ -2,21 +2,33 @@
 """
 An extention to DBAPI-2.0 for the easier building of SQL statements.
 
-This is intended to become a reference implementation for a proposal for an
-extension to tbe DBAPI-2.0.
+This extension allows you to call a DBAPI Cursor's execute method with a string
+that contains format specifiers for escaped and/or unescaped arguments.  Escaped
+arguments are specified using `` %S `` (capital S).  You can also mix positional
+and keyword arguments in the call, and this takes advantage of the Python call
+syntax niceties.  Also, lists passed in as parameters to be formatted are
+automatically joined by commas (this works for both unescaped and escaped
+parameters-- lists to be escaped have their elements escaped individually).
 
-.. note:: for now this only supports parametric arguments in the form of
-          Python's syntax for now (such as is supported by psycopg2).  It could
-          easily be extended to support any other syntax.
+For performance, the results of analysing and preparing the query is kept in a
+cache and reused on subsequence calls, similarly to the re or struct library.
 
-See explanation document at
+(This is intended to become a reference implementation for a proposal for an
+extension to tbe DBAPI-2.0.)
+
+.. note:: for now the transformation only works with DBAPIs that supports
+          parametric arguments in the form of Python's syntax for now
+          (e.g. psycopg2).  It could easily be extended to support other DBAPI
+          syntaxes.
+
+For more details and motivation, see the accompanying explanation document at
 http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
 
 5-minute usage instructions:
 
-  Run execute_f() with a cursor object and appropriate arguments:
+  Run execute_f() with a cursor object and appropriate arguments::
 
-    execute_f(cursor, 'SELECT %s FROM %(t)s WHERE id = %S', cols, id, t=table)
+    execute_f(cursor, ' SELECT %s FROM %(t)s WHERE id = %S ', cols, id, t=table)
 
   Ideally, we should be able to monkey-patch this method onto the cursor class
   of the DBAPI library (this may not be possible if it is an extension module).
@@ -26,13 +38,12 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
   performed at runtime.  If you want to do this explicitly, first compile your
   query, and execute it later with the resulting object, e.g.::
 
-    analq = qcompile('SELECT %s FROM %s WHERE id = %'S)
+    analq = qcompile(' SELECT %s FROM %s WHERE id = %S ')
     ...
     analq.execute(cursor, cols, id, t=table)
 
-
-.. important::  To developers: this module contains tests, if you make any
-                changes, please make sure to run and fix the tests.
+**Note to developers: this module contains tests, if you make any changes,
+please make sure to run and fix the tests.**
 
 """
 
