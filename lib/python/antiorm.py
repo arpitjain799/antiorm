@@ -270,7 +270,7 @@ class MormTable(object):
         try:
             if len(it) == 0:
                 if default is NODEF:
-                    raise MormError("Object not found.")
+                    raise MormError("Object not found (%s)." % str(constraints))
                 else:
                     return default
             return it.next()
