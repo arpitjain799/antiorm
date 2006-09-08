@@ -45,6 +45,16 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
 **Note to developers: this module contains tests, if you make any changes,
 please make sure to run and fix the tests.**
 
+Future Work
+===========
+
+- We could provide a reduce() method on the QueryAnalyzer, that will apply the
+  given parameters and save the calculated arguments for later use; This would
+  allow us to apply queries using multiple calls, to fill in only certain
+  parameters at a time.  This method would return a new QueryAnalyzer, albeit
+  one that would contain some pre-cooked apply_kwds and delay_kwds to be
+  accumulated to in the apply call.
+
 """
 
 # stdlib imports
@@ -55,7 +65,7 @@ from itertools import izip, count
 from pprint import pprint, pformat
 
 
-__all__ = ('execute_f', 'qcompile',)
+__all__ = ('execute_f', 'qcompile', 'set_paramstyle')
 
 
 class QueryAnalyzer(object):
@@ -73,7 +83,7 @@ class QueryAnalyzer(object):
 
     regexp = re.compile('%%(\\(([a-zA-Z0-9_]+)\\))?(%s)' % re_fmt)
 
-    def __init__(self, query):
+    def __init__(self, query, paramstyle=None):
         self.orig_query = query
 
         self.positional = []
@@ -83,7 +93,38 @@ class QueryAnalyzer(object):
         self.components = None
         "A sequence of strings or match objects."
 
+        if paramstyle is None:
+            paramstyle = _def_paramstyle
+        self.paramstyle = paramstyle
+        self.init_style(paramstyle)
+        "The parameter style supported by the underlying DBAPI."
+
         self.analyze() # Initialize.
+
+    def init_style(self, paramstyle):
+        "Pre-calculate style-specific constants."
+        if paramstyle == 'pyformat':
+            self.style_fmt = '%%%%(%(name)s)s'
+            self.style_argstype = dict
+        elif paramstyle == 'named':
+            self.style_fmt = ':%(name)s'
+            self.style_argstype = dict
+        elif paramstyle == 'qmark':
+            self.style_fmt = '?'
+            self.style_argstype = list
+        elif paramstyle == 'format':
+            self.style_fmt = '%%%%s'
+            self.style_argstype = list
+        elif paramstyle == 'numeric':
+            self.style_fmt = ':%(no)d'
+            self.style_argstype = list
+        # Non-standard. For our modified Sybase (from 0.37).
+        elif paramstyle == 'atnamed':
+            self.style_fmt = '@%(name)s'
+            self.style_argstype = dict
+        else:
+            raise ValueError(
+                "Parameter style '%s' is not supported." % paramstyle)
 
     def analyze(self):
         query = self.orig_query
@@ -111,22 +152,25 @@ class QueryAnalyzer(object):
         Return the string that would be used before application of the
         positional and keyword arguments.
         """
+        style_fmt = self.style_fmt
         oss = StringIO()
+        no = count(1)
         for x in self.components:
             if isinstance(x, str):
                 oss.write(x)
             else:
                 keyname, escaped, fmt = x
                 if escaped:
-                    oss.write('%%%%(%s)s' % keyname)
+                    oss.write(style_fmt % {'name': keyname,
+                                           'no': no.next()})
                 else:
                     oss.write('%%(%s)%s' % (keyname, fmt))
         return oss.getvalue()
-
+    
     def apply(self, *args, **kwds):
         if len(args) != len(self.positional):
             raise TypeError('not enough arguments for format string')
-        
+
         # Merge the positional arguments in the keywords dict.
         for name, value in izip(self.positional, args):
             assert name not in kwds
@@ -134,8 +178,10 @@ class QueryAnalyzer(object):
 
         # Patch up the components into a string.
         listexpans = {} # cached list expansions.
-        apply_kwds, delay_kwds = {}, {}
+        apply_kwds, delay_kwds = {}, self.style_argstype()
 
+        no = count(1)
+        style_fmt = self.style_fmt
         output = []
         for x in self.components:
             if isinstance(x, str):
@@ -159,15 +205,19 @@ class QueryAnalyzer(object):
 
                 if escaped:
                     okwds = delay_kwds
-                    outfmt = ['%%%%(%s)s' % x for x in words]
+                    outfmt = [style_fmt %
+                              {'name': x, 'no': no.next()} for x in words]
                 else:
                     okwds = apply_kwds
                     outfmt = ['%%(%s)%s' % (x, fmt) for x in words]
 
                 # Dispatch values on the appropriate output dictionary.
                 assert len(words) == len(value)
-                okwds.update(izip(words, value))
-                    
+                if isinstance(okwds, dict):
+                    okwds.update(izip(words, value))
+                else:
+                    okwds.extend(value)
+
                 # Create formatting string.
                 out = ','.join(outfmt)
 
@@ -206,16 +256,35 @@ def gensplit(regexp, s):
 
 #-------------------------------------------------------------------------------
 #
+_def_paramstyle = 'pyformat'
+
+def set_paramstyle(style_or_dbapi):
+    """
+    Sets the default paramstyle to be used by the underlying DBAPI.
+    You can pass in a DBAPI module object or a string. See PEP249 for details.
+    """
+    global _def_paramstyle
+    if isinstance(style_or_dbapi, str):
+        _def_paramstyle = style_or_dbapi
+    else:
+        _def_paramstyle = style_or_dbapi.paramstyle
+    assert _def_paramstyle in ('qmark', 'numeric',
+                               'named', 'format', 'pyformat')
+
+
+#-------------------------------------------------------------------------------
+#
+qcompile = QueryAnalyzer
+"""
+Compile a query in a compatible query analyzer.
+"""
+
+
+#-------------------------------------------------------------------------------
+#
 # Query cache used to avoid having to analyze the same queries multiple times.
 # Hashed on the query string.
 _query_cache = {}
-
-def qcompile(query):
-    """
-    Compile a query in a compatible query analyzer.
-    """
-    return QueryAnalyzer(query)
-
 
 # Note: we use cursor_ and query_ because we often call this function with
 # vars() which include those names on the caller side.
@@ -244,8 +313,10 @@ def execute_f(cursor_, query_, *args, **kwds):
       If the corresponding formatting is %S or %(name)S, the members of the
       sequence will be escaped individually.
 
-
     See qcompile() for details.
+
+    Note that this function accepts a '_paramstyle' optional argument, to set
+    which parameter style to use.
     """
     if debug_convert:
         print '\n' + '=' * 80
@@ -260,7 +331,9 @@ def execute_f(cursor_, query_, *args, **kwds):
     try:
         q = _query_cache[query_]
     except KeyError:
-        _query_cache[query_] = q = qcompile(query_)
+        _query_cache[query_] = q = qcompile(
+            query_,
+            paramstyle=kwds.pop('paramstyle', None))
 
     if debug_convert:
         print '\nquery analyzer =', str(q)
@@ -371,7 +444,7 @@ class TestExtension(unittest.TestCase):
         d = date(2006, 07, 28)
 
         cursor = TestCursor()
-        
+
         self.compare_nows(
             cursor.execute_f('''
               INSERT INTO %(table)s (%s)
@@ -446,6 +519,64 @@ class TestExtension(unittest.TestCase):
                 VALUES ('PHOTONAME', 'BIN1', 'BIN2', 'BIN3')
                 """)
 
+
+    def test_paramstyles(self):
+
+        d = date(2006, 07, 28)
+
+        cursor = TestCursor()
+
+        query = '''
+              Simple: %s  Escaped: %S
+              Kwd: %(bli)s KwdEscaped: %(bli)S  
+            '''
+        args = ('hansel', 'gretel')
+        kwds = dict(bli='bethel')
+
+        test_data = {
+            'pyformat': ("""
+              Simple: hansel  Escaped: %(__p2)s
+              Kwd: bethel KwdEscaped: %(bli)s
+            """, {'__p2': 'gretel', 'bli': 'bethel'}),
+            
+            'named': ("""
+              Simple: hansel  Escaped: :__p2
+              Kwd: bethel KwdEscaped: :bli
+            """, {'__p2': 'gretel', 'bli': 'bethel'}),
+
+            'qmark': ("""
+              Simple: hansel  Escaped: ?
+              Kwd: bethel KwdEscaped: ?
+            """, ['gretel', 'bethel']),
+
+            'format': ("""
+              Simple: hansel  Escaped: %s
+              Kwd: bethel KwdEscaped: %s
+            """, ['gretel', 'bethel']),
+
+            'numeric': ("""
+              Simple: hansel  Escaped: :1
+              Kwd: bethel KwdEscaped: :2
+            """, ['gretel', 'bethel']),
+            }
+
+        for style, (estr, eargs) in test_data.iteritems():
+            qstr, qargs = qcompile(query, paramstyle=style).apply(*args, **kwds)
+
+            self.compare_nows(qstr, estr)
+            self.assertEquals(qargs, eargs)
+
+        # Visual debugging.
+        print_it = 0
+        for style in test_data.iterkeys():
+            qanal = qcompile("""
+              %S %(c1)S %S %S %(c2)S
+            """, paramstyle=style)
+
+            qstr, qargs = qanal.apply(1, 2, 3, c1='CC1', c2='CC2')
+            if print_it:
+                print qstr
+                print qargs
 
 debug_convert = 0
 if __name__ == '__main__':
