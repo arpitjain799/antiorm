@@ -337,6 +337,10 @@ def connected(fun):
     """
     Decorator, similar to connected_ro() but that passes a RW connection and
     that commits automatically.
+
+    FIXME: we want to make the automatic commit optional.
+    FIXME: we would like to also ask for some cursors to be automatically passed
+           ain.
     """
     def wfun(*args, **kwds):
         conn = dbpool().connection()
@@ -664,11 +668,11 @@ class ConnectionPool(ConnectionPoolInterface):
                 self._roconn_refs -= 1
                 self._log('Release RO')
 
-                # Make sure a released connection is not blocking anything else,
-                # so rollback.  Technically this should not block anything,
-                # since the only operations that are carried out on this
-                # connection are RO, but we won't risk a deadlock because the
-                # user made a programming error.
+                # Make sure a released connection is not blocking anything else, so
+                # rollback.  Technically this should not block anything, since the
+                # only operations that are carried out on this connection are RO,
+                # but we won't risk a deadlock because the user made a programming
+                # error.
                 try:
                     if not self._disable_rollback:
                         conn.rollback()
@@ -759,7 +763,13 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         # Make sure that all connections lying about are collected before we go
         # on.
-        gc.collect()
+	try:
+            gc.collect()
+	except TypeError:
+	    # We've detected that we're being called in an incomplete
+	    # finalization state, we just bail out, leaving the connections
+            # to take care of themselves.
+	    return
 
         self._roconn_lock.acquire()
         self._pool_lock.acquire()
