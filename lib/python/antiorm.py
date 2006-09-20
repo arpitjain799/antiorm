@@ -501,6 +501,8 @@ class MormDecoder(MormEndecBase):
         #
         # if colnames is not None: # Remove dotted notation if present.
         #     self.colnames = [c.split('.')[-1] for c in colnames]
+        self.attrnames = dict((c, c.split('.')[-1]) for c in colnames)
+        assert len(self.attrnames) == len(self.colnames)
 
     def cols(self):
         """
@@ -553,6 +555,7 @@ class MormDecoder(MormEndecBase):
                         cvalue = converter.to_python(cvalue)
                         break
 
+            ## setattr(obj, self.attrnames[cname], cvalue)
             setattr(obj, cname, cvalue)
         return obj
 
