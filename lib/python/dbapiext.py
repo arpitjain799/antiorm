@@ -38,7 +38,7 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
   performed at runtime.  If you want to do this explicitly, first compile your
   query, and execute it later with the resulting object, e.g.::
 
-    analq = qcompile(' SELECT %s FROM %s WHERE id = %S ')
+    analq = qcompile(' SELECT %s FROM %(t)s WHERE id = %S ')
     ...
     analq.execute(cursor, cols, id, t=table)
 
@@ -54,6 +54,25 @@ Future Work
   parameters at a time.  This method would return a new QueryAnalyzer, albeit
   one that would contain some pre-cooked apply_kwds and delay_kwds to be
   accumulated to in the apply call.
+
+- Provide a simple test function that would allow people to test their queries
+  without having to create a TestCursor.
+
+- (idea by D.Mertz)::
+
+     c.execute_f('UPDATE INTO $(tab)s SET %s WHERE %W',
+                 {'name': 32}, {'id': 17}, tab='mytable')
+
+  Two things to provide (new features):
+
+  1. If a dictionary type is provided as a value, render it as a list of
+     comma-separated 'name = value' entries.  Value should be automatically
+     escaped.
+
+  2. A new formatting specifier should be provided for where clauses: ``%W``,
+     which would join its contained entries with ``AND``.  The only accepted
+     data types would be list of pairs or a dictionary.  Maybe we could provide
+     an OR version (``%AND`` and ``%OR``).
 
 """
 
