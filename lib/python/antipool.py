@@ -420,6 +420,7 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         'dbapi': the DBAPI-2.0 module interface for creating connections.
         'minconn': the minimum number of connections to keep around.
+        'maxconn': the maximum allowed number of connections to the DB.
         'debug': flag to enable printing debugging output.
         '**params': connection parameters for creating a new connection.
         """
