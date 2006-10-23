@@ -500,7 +500,7 @@ class ConnectionPool(ConnectionPoolInterface):
         when you forget to release some connections explicitly."""
 
         self._isolation_level = options.pop('isolation_level', None)
-        
+
     def ro_shared(self):
         """
         Returns true if the read-only connections are shared between the
@@ -812,8 +812,9 @@ class ConnectionPool(ConnectionPoolInterface):
     def getstats(self):
         """
         Return internal statistics.  This is used for producing graphs depicting
-        resource requirements over time.  Returns the pool size and total number
-        of connections.
+        resource requirements over time.  Returns the total number of
+        connections open (including the RO connection) and the current number of
+        connections held in the internal pool.
         """
         total_conn = 0
         self._roconn_lock.acquire()
@@ -824,13 +825,13 @@ class ConnectionPool(ConnectionPoolInterface):
             self._roconn_lock.release()
 
         self._pool_lock.acquire()
+        total_conn += self._nbconn
         try:
             pool_size = len(self._pool)
         finally:
             self._pool_lock.release()
-        total_conn += pool_size
 
-        return pool_size, total_conn
+        return total_conn, pool_size
 
 
 #-------------------------------------------------------------------------------
