@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 """
-An extention to DBAPI-2.0 for the easier building of SQL statements.
+An extention to DBAPI-2.0 for more easily building SQL statements.
 
 This extension allows you to call a DBAPI Cursor's execute method with a string
 that contains format specifiers for escaped and/or unescaped arguments.  Escaped
 arguments are specified using `` %S `` (capital S).  You can also mix positional
 and keyword arguments in the call, and this takes advantage of the Python call
 syntax niceties.  Also, lists passed in as parameters to be formatted are
-automatically joined by commas (this works for both unescaped and escaped
-parameters-- lists to be escaped have their elements escaped individually).
+automatically detected and joined by commas (this works for both unescaped and
+escaped parameters-- lists to be escaped have their elements escaped
+individually).  In addition, if you pass in a dictionary corresponding to an
+escaped formatting specifier, the dictionary is rendered as a list of
+comma-separated <key> = <value> pairs, such as are suitable for an INSERT
+statement.
 
 For performance, the results of analysing and preparing the query is kept in a
 cache and reused on subsequence calls, similarly to the re or struct library.
@@ -45,6 +49,7 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
 **Note to developers: this module contains tests, if you make any changes,
 please make sure to run and fix the tests.**
 
+
 Future Work
 ===========
 
@@ -60,19 +65,10 @@ Future Work
 
 - (idea by D.Mertz)::
 
-     c.execute_f('UPDATE INTO $(tab)s SET %s WHERE %W',
-                 {'name': 32}, {'id': 17}, tab='mytable')
-
-  Two things to provide (new features):
-
-  1. If a dictionary type is provided as a value, render it as a list of
-     comma-separated 'name = value' entries.  Value should be automatically
-     escaped.
-
-  2. A new formatting specifier should be provided for where clauses: ``%W``,
-     which would join its contained entries with ``AND``.  The only accepted
-     data types would be list of pairs or a dictionary.  Maybe we could provide
-     an OR version (``%AND`` and ``%OR``).
+  A new formatting specifier should be provided for where clauses: ``%W``, which
+  would join its contained entries with ``AND``.  The only accepted data types
+  would be list of pairs or a dictionary.  Maybe we could provide an OR version
+  (``%AND`` and ``%OR``).
 
 """
 
@@ -198,9 +194,10 @@ class QueryAnalyzer(object):
         # Patch up the components into a string.
         listexpans = {} # cached list expansions.
         apply_kwds, delay_kwds = {}, self.style_argstype()
-
+        
         no = count(1)
         style_fmt = self.style_fmt
+        dict_fmt = '%%(key)s = %s' % style_fmt
         output = []
         for x in self.components:
             if isinstance(x, str):
@@ -219,16 +216,37 @@ class QueryAnalyzer(object):
                         words = ['%s_l%d__' % (keyname, x)
                                  for x in xrange(len(value))]
                         listexpans[keyname] = words
+
+                    if escaped:
+                        outfmt = [style_fmt %
+                                  {'name': x, 'no': no.next()} for x in words]
+                    else:
+                        outfmt = ['%%(%s)%s' % (x, fmt) for x in words]
+
+                elif isinstance(value, dict):
+                    # If a dict is passed in, the format specified *must* be for
+                    # escape; we detect this and raise an appropriate error.
+                    if not escaped:
+                        raise ValueError("Attempting to format a dict in "
+                                         "an SQL statement without escaping.")
+
+                    # Convert dict in a list of comma-separated 'name=value' pairs.
+                    items = value.items()
+                    words = ['%s_key_%s__' % (keyname, x[0]) for x in items]
+                    value = [x[1] for x in items]
+                    outfmt = [dict_fmt % {'key': k, 'name': word}
+                              for word, (k, v) in izip(words, items)]
                 else:
                     words, value = (keyname,), (value,)
+                    if escaped:
+                        outfmt = [style_fmt % {'name': keyname, 'no': no.next()}]
+                    else:
+                        outfmt = ['%%(%s)%s' % (keyname, fmt)]
 
                 if escaped:
                     okwds = delay_kwds
-                    outfmt = [style_fmt %
-                              {'name': x, 'no': no.next()} for x in words]
                 else:
                     okwds = apply_kwds
-                    outfmt = ['%%(%s)%s' % (x, fmt) for x in words]
 
                 # Dispatch values on the appropriate output dictionary.
                 assert len(words) == len(value)
@@ -238,7 +256,7 @@ class QueryAnalyzer(object):
                     okwds.extend(value)
 
                 # Create formatting string.
-                out = ','.join(outfmt)
+                out = ', '.join(outfmt)
 
             output.append(out)
 
@@ -423,7 +441,7 @@ class TestExtension(unittest.TestCase):
         s2 = s2.replace(' ', '').replace('\n', '')
         self.assertEquals(s1, s2)
 
-    def test_basic(self):
+    def __test_basic(self):
         "Basic replacement tests."
 
         cursor = TestCursor()
@@ -458,7 +476,7 @@ class TestExtension(unittest.TestCase):
                 expect + expect)
 
 
-    def test_misc(self):
+    def __test_misc(self):
 
         d = date(2006, 07, 28)
 
@@ -539,7 +557,7 @@ class TestExtension(unittest.TestCase):
                 """)
 
 
-    def test_paramstyles(self):
+    def __test_paramstyles(self):
 
         d = date(2006, 07, 28)
 
@@ -596,6 +614,27 @@ class TestExtension(unittest.TestCase):
             if print_it:
                 print qstr
                 print qargs
+
+    def test_dict(self):
+        "Tests for passing in a dictionary argument."
+        
+        cursor = TestCursor()
+        data = {'brazil': 'portuguese',
+                'peru': 'spanish',
+                'japan': 'japanese',
+                'philipines': 'tagalog'}
+
+        self.assertRaises(ValueError, execute_f,
+                          cursor, ' unescaped: %s ', data)
+
+        res = execute_f(cursor, ' UPDATE %s SET %S; ', 'mytable', data)
+        self.compare_nows(res, """
+           UPDATE mytable
+             SET brazil = 'portuguese',
+                 japan = 'japanese',
+                 philipines = 'tagalog',
+                 peru = 'spanish';       """)
+
 
 debug_convert = 0
 if __name__ == '__main__':
