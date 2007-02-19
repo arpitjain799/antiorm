@@ -63,7 +63,7 @@ Future Work
 - Provide a simple test function that would allow people to test their queries
   without having to create a TestCursor.
 
-- (idea by D.Mertz)::
+- (idea by D.Mertz):
 
   A new formatting specifier should be provided for where clauses: ``%W``, which
   would join its contained entries with ``AND``.  The only accepted data types
