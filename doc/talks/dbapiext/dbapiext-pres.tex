@@ -118,6 +118,12 @@ for easier SQL queries}
 \vfill
 
   For example:
+
+\begin{verbatim}
+    INSERT INTO Users (username, email) 
+       VALUES ('George', 'g@soros.com');
+\end{verbatim}
+
 \begin{verbatim}
   cursor.execute("""
     INSERT INTO %s (%s, %s) VALUES (%%s, %%s)
@@ -164,13 +170,17 @@ for easier SQL queries}
    (var_username,))
 \end{verbatim}
 
+String constants, timestamps, dates, etc. ; Formats vary depending on the
+database.
+
+\pause
 \vfill
 Problems:
 \begin{itemize}
 \item Two lists of parameters is error-prone
-\item You have to provide a tuple or a dict
+\item You have to provide a tuple or a dict for the argument
 \item It does not understand lists 
-\item You can't mix positional and keyword arguments
+\item You can't leverage the power of keyword arguments
 \end{itemize}
 
 \end{frame}
@@ -181,7 +191,7 @@ Problems:
   \frametitle{\texttt{Cursor.execute()} interface}
 
   When you write real-world queries (instead of Mickey-mouse example
-  presentation queries), it gets even messier:
+  queries), it gets even messier:
 \begin{verbatim}
   cursor.execute("""
     SELECT %s FROM %s WHERE %s > %%s LIMIT %s
@@ -214,7 +224,7 @@ Problems:
    var_username)
 \end{verbatim}
 
-  You can now mix vanilla and escaped arguments:
+  You can now mix vanilla and escaped values in the arguments:
 \begin{verbatim}
  cursor.execute_f(
    "INSERT INTO Users (%s) VALUES (%S)",
@@ -229,22 +239,50 @@ Problems:
 \begin{frame}[fragile]
   \frametitle{Lists are understood}
 
-  Lists are automatically joined with a comma:
+  Lists are automatically joined with commas:
 \begin{verbatim}
- columns = ["username", "email", "phone"]
+ columns = ["username", "email", "age"]
  cursor.execute_f(
    "INSERT INTO Users (%s) VALUES (...)",
    columns, ...)
 \end{verbatim}
 
-\pause
+\vfill
+\begin{verbatim}
+   INSERT INTO Users 
+      ('username', 'email', 'age') 
+      VALUES (...)
+\end{verbatim}
+\vfill
+
+\end{frame}
+
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Lists are understood}
+
   This also works for escaped arguments:
 \begin{verbatim}
- values = [var_username, var_email, var_phone]
+ columns = ["username", "email", "age"]
+ values = [var_username, var_email, var_age]
  cursor.execute_f(
    "INSERT INTO Users (%s) VALUES (%S)",
    columns, values)
 \end{verbatim}
+
+\vfill
+\begin{verbatim}
+   INSERT INTO Users 
+      ('username', 'email', 'age') 
+      VALUES ('Warren', 'w@buffet.com', 76)
+\end{verbatim}
+\vfill
+
+\begin{itemize}
+\item Values are escaped individually and then comma-joined
+\end{itemize}
 
 \end{frame}
 
@@ -253,12 +291,17 @@ Problems:
 \begin{frame}[fragile]
   \frametitle{Dictionaries are understood}
 
-  Dictionaries are meant to be rendered appropriately for \texttt{UPDATE}
-  statements:
+  Dictionaries are rendered as required for \texttt{UPDATE} statements:
   \begin{itemize}
   \item Comma-separated \texttt{<name> = <value>} pairs
   \item Values are DB-escaped automatically
   \end{itemize}
+
+\begin{verbatim}
+  UPDATE languages 
+    SET id = 3, brazil = 'portuguese'
+\end{verbatim}
+\vfill
 
 \begin{verbatim}
   values = {"id": 3, 
@@ -269,11 +312,6 @@ Problems:
 \end{verbatim}
 \vfill
 
-\begin{verbatim}
-  UPDATE languages 
-    SET id = 3, brazil = 'portuguese'
-\end{verbatim}
-\vfill
 
 (Suggestion by D. Mertz)
 
@@ -289,14 +327,16 @@ Problems:
 
 \begin{verbatim}
   cursor.execute_f("""
+
      SELECT %(table)s FROM %s 
        WHERE id = %(id)S
+
   """, column_names, table=tablename, id=42)
 \end{verbatim}
 
 \begin{itemize}
 \item You can recycle arguments this way \\
-(i.e. a table name that occurs multiple times)
+(i.e. a table or column name that occurs multiple times)
 \end{itemize}
 
 
@@ -312,28 +352,36 @@ Problems:
   \item The extension only massages your query in a form that can be digested by
     DBAPI's \texttt{Cursor.execute()}
 
-\pause
   \item I lied slightly in my examples, you have to use it like this:
 \begin{verbatim}
    execute_f(cursor, """
       ...
 \end{verbatim}
 
-\pause
-  \item We cache as much of the preprocessing as possible (like \texttt{re},
-    \texttt{struct})
+  \item We cache as much of the preprocessing as possible \\
+(similar to \texttt{re}, \texttt{struct})
     \begin{itemize}
     \item You can cache your queries at load time with \texttt{qcompile()}.
     \end{itemize}
   \end{itemize}
 
-\vfill
-\pause
-Future work:
-\begin{itemize}
-\item Automatically parse the SQL query and determine which arguments should be
-  quoted (a lot more work)
-\end{itemize}
+
+\end{frame}
+
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Future work}
+
+Ideally, we would want to automatically parse the SQL queries and
+determine which arguments should be quoted 
+
+  \begin{itemize}
+  \item A lot more work
+  \item Would have to be done at load time for performance reasons
+  \end{itemize}
+  
 
 \end{frame}
 
