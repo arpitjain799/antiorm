@@ -112,7 +112,7 @@ for easier SQL queries}
 
   General form:
 \begin{verbatim}
-  cursor.execute(<string>, <tuple-or-map>)
+  cursor.execute(<string>, <tuple-or-dict>)
 \end{verbatim}
 
 \vfill
@@ -195,7 +195,7 @@ Problems:
 \begin{verbatim}
   cursor.execute("""
     SELECT %s FROM %s WHERE %s > %%s LIMIT %s
-    """ % (','.join(columns), "Users", "age", 10)
+    """ % (','.join(columns), "Users", "age", 10),
     (18,))
 \end{verbatim}
 
