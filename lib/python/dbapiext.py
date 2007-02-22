@@ -32,7 +32,7 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
 
   Run execute_f() with a cursor object and appropriate arguments::
 
-    execute_f(cursor, ' SELECT %s FROM %(t)s WHERE id = %S ', cols, id, t=table)
+    execute_f(cursor, ' SELECT %s FROM %(t)s WHERE id = %X ', cols, id, t=table)
 
   Ideally, we should be able to monkey-patch this method onto the cursor class
   of the DBAPI library (this may not be possible if it is an extension module).
@@ -42,7 +42,7 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
   performed at runtime.  If you want to do this explicitly, first compile your
   query, and execute it later with the resulting object, e.g.::
 
-    analq = qcompile(' SELECT %s FROM %(t)s WHERE id = %S ')
+    analq = qcompile(' SELECT %s FROM %(t)s WHERE id = %X ')
     ...
     analq.execute(cursor, cols, id, t=table)
 
@@ -338,7 +338,7 @@ def execute_f(cursor_, query_, *args, **kwds):
 
     - By default, %s placeholders are not escaped.
 
-    - Use the %S or %(name)S placeholder to specify escaped strings.
+    - Use the %X or %(name)X placeholder to specify escaped strings.
 
     - You can specify positional arguments without having to place them in an
       extra tuple.
@@ -347,7 +347,7 @@ def execute_f(cursor_, query_, *args, **kwds):
       Positional arguments are used to fill non-keyword placeholders.
 
     - Arguments that are tuples or lists will be automatically joined by colons.
-      If the corresponding formatting is %S or %(name)S, the members of the
+      If the corresponding formatting is %X or %(name)X, the members of the
       sequence will be escaped individually.
 
     See qcompile() for details.
