@@ -27,9 +27,9 @@ for easier SQL queries}
 
 \author{Martin Blais}
 
-\institute{}
+\institute{EWT LLC / Madison Tyler}
 
-\date{PyCon 2007}
+\date{http://furius.ca/antiorm/}
 
 \subject{dbapiext presentation @ PyCon 2007}
 
@@ -37,6 +37,7 @@ for easier SQL queries}
 
 \newcommand{\todo}[1]{}
 
+\newcommand{\bigerror}{\begin{center}{\textbf{ERROR!}}\end{center}}
 
 \AtBeginSubsection[]
 {
@@ -61,159 +62,192 @@ for easier SQL queries}
 \begin{frame}[fragile]
   \frametitle{Introduction}
 
-  DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use.
-
-\vfill
-
-  General form:
 \begin{verbatim}
-  cursor.execute(<string>, <tuple-or-dict>)
-\end{verbatim}
+connection = dbapi.connect(...)
+cursor = connection.cursor()
 
-\vfill
+cursor.execute("""
+
+  SELECT * FROM Users WHERE username = 'raymond'
+
+  """)
+\end{verbatim}
 
 \end{frame}
 
 
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Escaping Values}
 
-Raymond's comments:
+\begin{verbatim}
+name = 'raymond'
+cursor.execute("""
 
+  SELECT * FROM Users WHERE username = %s
 
-  show substitution results
-  start from the POV of the escaped substitution first, work your way back
-  make sure it is worded next to the examples why they fail
+  """, (name,))
+\end{verbatim}
 
-  then, show how some pieces I don't want to escape, have to be used with %%s
+\vfill\pause
 
-  introduce keyword arguments separately
+A common mistake is to forget to call with a tuple or a dict:
+\begin{verbatim}
+cursor.execute("""
 
-  show an example for the problem with lists
+  SELECT * FROM Users WHERE username = %s
 
-    my solution: is to accept a list argument
+  """, name)  <--- this fails
+\end{verbatim}
 
-
-questions:
-
-- "query writing" unclear
-- prepared statements
-- could support other %S specifiers
-- use cheetah templating
-
-indent Mickey mouse query (split it, ray)
-
-- add a little graphics to show that it only sits over dbapi
-
-people are not familiar with the problem, start with the erroneous statements
-examples, and work your way to the ugly execute() method.
-
-then present the improvemetns.
-
-
-
-
-
-
-
-
-
-
+\end{frame}
 
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{\texttt{Cursor.execute()} interface}
+  \frametitle{String Interpolation Pitfalls}
 
-
-\vfill
-\pause
-
-
-
-
-
-
-
-
-
-  Common mistake \#1:
+Another mistake is to use string interpolation:
 \begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES (%s)" % 
-   var_username)
+cursor.execute("""
+
+  SELECT * FROM Users WHERE username = %s
+
+  """ % name)
 \end{verbatim}
 
+\bigerror
 
-%%   For example:
+The resulting query is missing the quotes around the values:
+\begin{verbatim}
+  SELECT * FROM Users WHERE username = raymond
+\end{verbatim}
 
+\end{frame}
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{String Interpolation Pitfalls}
+
+And you cannot fix this by hand:
+\begin{verbatim}
+cursor.execute("""
+
+  SELECT * FROM Users WHERE username = '%s'
+
+  """ % name)
+\end{verbatim}
+
+\bigerror
+
+The resulting query is missing the quotes around the values:
+\begin{verbatim}
+SELECT * FROM Users WHERE username = 'ray's cat'
+\end{verbatim}
+
+\end{frame}
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{String Interpolation Pitfalls}
+
+Using \texttt{repr()} will not help either:
+\begin{verbatim}
+cursor.execute("""
+
+  SELECT * FROM Users WHERE username = %s
+
+  """ % repr(name))
+\end{verbatim}
+
+\bigerror
+
+Escaping syntax is database-specific:
+\begin{verbatim}
+SELECT * FROM Users WHERE username = 'ray''s cat'
+\end{verbatim}
+
+\end{frame}
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{DBAPI Must Escape Values}
+
+  You absolutely \emph{must} let DBAPI deal with the escaping of
+  values.
+
+\vfill
+
+  The escaping syntax for
+  \begin{itemize}
+  \item string constants *
+  \item timestamps
+  \item dates
+  \item blobs
+  \item (other SQL data types?)
+  \end{itemize}
+  depends on the database backend.
+
+\end{frame}
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Non-escaped Substitutions}
+
+  What if you need to format non-escaped variables?
+
+\begin{verbatim}
+  SELECT email, phone FROM Users 
+    WHERE username = 'raymond'
+\end{verbatim}
+
+\begin{verbatim}
+cursor.execute("""
+
+  SELECT %s, %s FROM Users WHERE username = %s
+
+  """, (col1, col2, name))  <--- will not work
+\end{verbatim}
+
+%% \vfill
+%% Produces invalid SQL:
 %% \begin{verbatim}
-%%     INSERT INTO Users (username, email) 
-%%        VALUES ('George', 'g@soros.com');
+%%   SELECT 'email', 'phone' FROM Users 
+%%     WHERE username = 'raymond'
 %% \end{verbatim}
 
-%% \begin{verbatim}
-%%   cursor.execute("""
-%%     INSERT INTO %s (%s, %s) VALUES (%%s, %%s)
-%%     """ % ("Users", "username", "email"),
-%%     (var_username, var_email))
-%% \end{verbatim}
+\vspace{1.5cm}
 
 \end{frame}
 
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{\texttt{Cursor.execute()} interface}
+  \frametitle{Non-escaped Substitutions}
 
-%%   These are \emph{also} incorrect.
+  What if you need to format non-escaped variables?
 
-  Common mistake \#2:
 \begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES ('%s')" % 
-   var_username)
+  SELECT email, phone FROM Users 
+    WHERE username = 'raymond'
 \end{verbatim}
 
-\pause
-
-  Common mistake \#3:
 \begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES (%s)" % 
-   repr(var_username))
+cursor.execute("""
+
+  SELECT %s, %s FROM Users WHERE username = %%s
+
+  """ % (col1, col2), (name,))  <-- two steps!
 \end{verbatim}
 
-\end{frame}
-
-  Common mistake \#4:
-\begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES (%s)",
-   var_username)
-\end{verbatim}
-
-
-%-------------------------------------------------------------------------------
-\begin{frame}[fragile]
-  \frametitle{\texttt{Cursor.execute()} interface}
-
-  You \emph{must} let DBAPI do its database-specific escaping of values:
-\begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES (%s)",
-   (var_username,))
-\end{verbatim}
-
-String constants, timestamps, dates, etc. ; Formats vary depending on the
-database.
-
-\pause
-\vfill
-Problems:
 \begin{itemize}
-\item Two lists of parameters is error-prone
-\item You have to provide a tuple or a dict for the argument
-\item It does not understand lists 
-\item You can't leverage the power of keyword arguments
+\item Because of the string interpolation step, you have to use \verb=%%s= for
+  the escaped values
+\item Specifying the parameters in the right order becomes tricky
 \end{itemize}
 
 \end{frame}
@@ -221,68 +255,90 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Introduction}
+  \frametitle{Lists and format-specifiers}
 
-\vfill
-  With this work:
-  \begin{itemize}
-  \item Provide a simple extension that gets rid of the pitfalls
-  \item Make it much easier to write queries
-  \item A single pure Python module
-  \item Support a number of DBAPI implementations
-  \item Deals only with query writing
-  \end{itemize}
+  Sometimes you want to render variable-length lists:
+\begin{verbatim}
+cursor.execute("""
+
+  INSERT INTO Users (%s, %s) 
+             VALUES (%%s, %%s)
+
+  """ % ("email", "phone"), values)
+\end{verbatim}
+
+\vfill\pause
+\begin{verbatim}
+cursor.execute("""
+
+  INSERT INTO Users (%s, %s, %s) 
+             VALUES (%%s, %%s, %%s)
+
+  """ % ("email", "phone", "address"), values)
+\end{verbatim}
 
 \end{frame}
 
 
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Lists and format-specifiers}
+  
+\begin{verbatim}
+  cursor.execute("""
+  
+    INSERT INTO Users (%s) 
+               VALUES (%s)
+  
+    """ % (','.join(columns),
+           ','.join(["%%s"] * 2)), 
+    values)
+\end{verbatim}
+
+%% \vfill
+%% Heeeeelllppp!!
+\end{frame}
+
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{\texttt{Cursor.execute()} interface}
+  \frametitle{And in the real world it gets uglier\dots}
 
   When you write real-world queries (instead of Mickey-mouse example
   queries), it gets even messier:
 \begin{verbatim}
   cursor.execute("""
     SELECT %s FROM %s 
-      WHERE %s > %%s LIMIT %s
-    """ % (','.join(columns), "Users", 
-           "age", 10),
-    (18,))
+      WHERE %s > %%s 
+        AND %s < %%s 
+      LIMIT %s %s
+    """ % (','.join(columns), "Users",
+           "age", "age", 10, "DESC"), 
+    (18, 60))
 \end{verbatim}
 
-\begin{itemize}
-\item Because of string interpolation, you have to \textbf{double-escape} the
-  format specifiers for the escaped values
-\item The parameters in the strings are in a \textbf{different order} than the
-  function arguments (easy to make mistakes!)
-\end{itemize}
+\vfill
+DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
 
 \end{frame}
 
 
-
-
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{New format specifier (\%S)}
+  \frametitle{My Proposed Solution: \texttt{dbapiext}}
 
-  We provide a new \texttt{execute()} method, which supports a format specifier
-  for escaped arguments: \texttt{\%S} (capital S)
+  \begin{itemize}
+  \item Provide a very simple extension that gets rid of the pitfalls of
+    \texttt{execute()}
+  \item Make it much easier to write queries
+  \item A single pure Python module, no changes to your DBAPI
+  \item Support a number of DBAPI implementations
+  \item No external dependencies
+  \end{itemize}
 
-\begin{verbatim}
- cursor.execute_f(
-   "INSERT INTO Users (username) VALUES (%S)",
-   var_username)
-\end{verbatim}
-
-  You can now mix vanilla and escaped values in the arguments:
-\begin{verbatim}
- cursor.execute_f(
-   "INSERT INTO Users (%s) VALUES (%S)",
-   "username", var_username)
-\end{verbatim}
+  \begin{center}
+    \includegraphics[width=0.4\textwidth]{layer.pdf}
+  \end{center}
 
 \end{frame}
 
@@ -290,23 +346,49 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Lists are understood}
+  \frametitle{New format specifier (\%X)}
+
+  We provide a replacement for \texttt{execute()}, and we introduce a new format
+  specifier for escaped arguments: \texttt{\%X} (capital X)
+
+\begin{verbatim}
+ cursor.execute_f(
+   "INSERT INTO Users (username) VALUES (%X)",
+   name)
+\end{verbatim}
+
+  You can now mix vanilla and escaped values in the arguments, and you are not
+  forced to use a tuple anymore:
+\begin{verbatim}
+ cursor.execute_f(
+   "INSERT INTO Users (%s) VALUES (%X)",
+   "username", name)
+\end{verbatim}
+
+\end{frame}
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{Lists are Recognized and Understood}
 
   Lists are automatically joined with commas:
 \begin{verbatim}
  columns = ["username", "email", "age"]
- cursor.execute_f(
-   "INSERT INTO Users (%s) VALUES (...)",
-   columns, ...)
+ cursor.execute_f("""
+
+   INSERT INTO Users (%s) 
+              VALUES (...)
+
+  """, columns, ...)
 \end{verbatim}
 
-\vfill
 \begin{verbatim}
-   INSERT INTO Users 
-      ('username', 'email', 'age') 
-      VALUES (...)
+
+   INSERT INTO Users (username, email, age)
+              VALUES (...)
+
 \end{verbatim}
-\vfill
 
 \end{frame}
 
@@ -314,24 +396,25 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Lists are understood}
+  \frametitle{Lists are Recognized and Understood}
 
   This also works for escaped arguments:
 \begin{verbatim}
- columns = ["username", "email", "age"]
- values = [var_username, var_email, var_age]
- cursor.execute_f(
-   "INSERT INTO Users (%s) VALUES (%S)",
-   columns, values)
+ values = ["Warren", "w@b.com", 76]
+ cursor.execute_f("""
+
+   INSERT INTO Users (%s) 
+              VALUES (%X)
+
+  """, columns, values)
 \end{verbatim}
 
-\vfill
 \begin{verbatim}
-   INSERT INTO Users 
-      ('username', 'email', 'age') 
-      VALUES ('Warren', 'w@buffet.com', 76)
+
+   INSERT INTO Users (username, email, age)
+              VALUES ('Warren', 'w@b.com', 76)
+
 \end{verbatim}
-\vfill
 
 \begin{itemize}
 \item Values are escaped individually and then comma-joined
@@ -340,31 +423,34 @@ Problems:
 \end{frame}
 
 
+
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Dictionaries are understood}
+  \frametitle{Dictionaries are Recognized and Understood}
 
   Dictionaries are rendered as required for \texttt{UPDATE} statements:
   \begin{itemize}
   \item Comma-separated \texttt{<name> = <value>} pairs
-  \item Values are DB-escaped automatically
+  \item Values are escaped automatically
   \end{itemize}
 
 \begin{verbatim}
-  UPDATE languages 
+  UPDATE languages
     SET id = 3, brazil = 'portuguese'
 \end{verbatim}
 \vfill
 
 \begin{verbatim}
-  values = {"id": 3, 
+  values = {"id": 3,
             "brazil": "portuguese"}
+  cursor.execute_f("""
 
-  cursor.execute_f("UPDATE languages SET %S", 
-                   values)
+    UPDATE languages SET %X",
+
+  """, values)
 \end{verbatim}
-\vfill
 
+\vfill
 
 (Suggestion by D. Mertz)
 
@@ -374,24 +460,23 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Positional and Keywords Arguments}
-
-  Positional and keyword arguments can be used simultaneously:
+  \frametitle{Keywords Arguments are Supported}
 
 \begin{verbatim}
   cursor.execute_f("""
 
-     SELECT %(table)s FROM %s 
-       WHERE id = %(id)S
+     SELECT %(table)s FROM %s
+       WHERE id = %(id)X
 
   """, column_names, table=tablename, id=42)
 \end{verbatim}
 
 \begin{itemize}
-\item You can recycle arguments this way \\
+\item Provide a useful way to recycle arguments \\
 (i.e. a table or column name that occurs multiple times)
-\end{itemize}
 
+\item Positional and keyword arguments can be used simultaneously
+\end{itemize}
 
 \end{frame}
 
@@ -402,22 +487,24 @@ Problems:
   \frametitle{Performance and Remarks}
 
   \begin{itemize}
-  \item The extension only massages your query in a form that can be digested by
+  \item The extension massages your query in a form that can be digested by
     DBAPI's \texttt{Cursor.execute()}
-
-  \item I lied slightly in my examples, you have to use it like this:
-\begin{verbatim}
-   execute_f(cursor, """
-      ...
-\end{verbatim}
 
   \item We cache as much of the preprocessing as possible \\
 (similar to \texttt{re}, \texttt{struct})
     \begin{itemize}
     \item You can cache your queries at load time with \texttt{qcompile()}.
     \end{itemize}
-  \end{itemize}
 
+\pause
+  \item I \emph{lied} in my examples, you have to use it like this (if
+    monkey-patching \texttt{Cursor} fails):
+\begin{verbatim}
+   execute_f(cursor, """
+      ...
+\end{verbatim}
+
+  \end{itemize}
 
 \end{frame}
 
@@ -425,16 +512,16 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{Future work}
+  \frametitle{Final Thoughts}
 
 Ideally, we would want to automatically parse the SQL queries and
-determine which arguments should be quoted 
+determine which arguments should be quoted
 
   \begin{itemize}
   \item A lot more work
   \item Would have to be done at load time for performance reasons
   \end{itemize}
-  
+
 
 \end{frame}
 
@@ -477,29 +564,29 @@ antiorm homepage: \\
 %% %-------------------------------------------------------------------------------
 %% \begin{frame}[fragile]
 %%   \frametitle{Motivation (Anti-ORM Activism)}
-%% 
+%%
 %%   \begin{center}
 %%     \includegraphics[width=0.8\textwidth]{noorms.png}
 %%   \end{center}
 %% \end{frame}
-%% 
+%%
 
 %% %-------------------------------------------------------------------------------
 %% \begin{frame}[fragile]
 %%   \frametitle{Motivation}
-%% 
+%%
 %%   \begin{quote}
 %%     While some like to use ORMs to interface with databases, we prefer to
 %%     maintain the full power of the SQL language, and instead focus on making the
 %%     building of SQL queries much more convenient.
 %%   \end{quote}
-%% 
+%%
 %%   \begin{itemize}
 %%   \item The domain-specific mini-language of SQL can never be fully replaced
 %%     with an API
 %%   \item ORMs hide the important facts: when does data transfer occur?  Does data
 %%     get queried multiple times?
 %%   \end{itemize}
-%% 
+%%
 %% \end{frame}
-%% 
+%%
