@@ -64,51 +64,6 @@ for easier SQL queries}
   DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use.
 
 \vfill
-  With this work:
-  \begin{itemize}
-  \item Provide a simple extension that gets rid of the pitfalls
-  \item Make it much easier to write queries
-  \item A single pure Python module
-  \item Support a number of DBAPI implementations
-  \item Deals only with query writing
-  \end{itemize}
-
-\end{frame}
-
-
-%% %-------------------------------------------------------------------------------
-%% \begin{frame}[fragile]
-%%   \frametitle{Motivation (Anti-ORM Activism)}
-%% 
-%%   \begin{center}
-%%     \includegraphics[width=0.8\textwidth]{noorms.png}
-%%   \end{center}
-%% \end{frame}
-%% 
-
-%% %-------------------------------------------------------------------------------
-%% \begin{frame}[fragile]
-%%   \frametitle{Motivation}
-%% 
-%%   \begin{quote}
-%%     While some like to use ORMs to interface with databases, we prefer to
-%%     maintain the full power of the SQL language, and instead focus on making the
-%%     building of SQL queries much more convenient.
-%%   \end{quote}
-%% 
-%%   \begin{itemize}
-%%   \item The domain-specific mini-language of SQL can never be fully replaced
-%%     with an API
-%%   \item ORMs hide the important facts: when does data transfer occur?  Does data
-%%     get queried multiple times?
-%%   \end{itemize}
-%% 
-%% \end{frame}
-%% 
-
-%-------------------------------------------------------------------------------
-\begin{frame}[fragile]
-  \frametitle{\texttt{Cursor.execute()} interface}
 
   General form:
 \begin{verbatim}
@@ -117,19 +72,90 @@ for easier SQL queries}
 
 \vfill
 
-  For example:
+\end{frame}
 
+
+
+Raymond's comments:
+
+
+  show substitution results
+  start from the POV of the escaped substitution first, work your way back
+  make sure it is worded next to the examples why they fail
+
+  then, show how some pieces I don't want to escape, have to be used with %%s
+
+  introduce keyword arguments separately
+
+  show an example for the problem with lists
+
+    my solution: is to accept a list argument
+
+
+questions:
+
+- "query writing" unclear
+- prepared statements
+- could support other %S specifiers
+- use cheetah templating
+
+indent Mickey mouse query (split it, ray)
+
+- add a little graphics to show that it only sits over dbapi
+
+people are not familiar with the problem, start with the erroneous statements
+examples, and work your way to the ugly execute() method.
+
+then present the improvemetns.
+
+
+
+
+
+
+
+
+
+
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
+  \frametitle{\texttt{Cursor.execute()} interface}
+
+
+\vfill
+\pause
+
+
+
+
+
+
+
+
+
+  Common mistake \#1:
 \begin{verbatim}
-    INSERT INTO Users (username, email) 
-       VALUES ('George', 'g@soros.com');
+ cursor.execute(
+   "INSERT INTO Users (username) VALUES (%s)" % 
+   var_username)
 \end{verbatim}
 
-\begin{verbatim}
-  cursor.execute("""
-    INSERT INTO %s (%s, %s) VALUES (%%s, %%s)
-    """ % ("Users", "username", "email"),
-    (var_username, var_email))
-\end{verbatim}
+
+%%   For example:
+
+%% \begin{verbatim}
+%%     INSERT INTO Users (username, email) 
+%%        VALUES ('George', 'g@soros.com');
+%% \end{verbatim}
+
+%% \begin{verbatim}
+%%   cursor.execute("""
+%%     INSERT INTO %s (%s, %s) VALUES (%%s, %%s)
+%%     """ % ("Users", "username", "email"),
+%%     (var_username, var_email))
+%% \end{verbatim}
 
 \end{frame}
 
@@ -138,25 +164,32 @@ for easier SQL queries}
 \begin{frame}[fragile]
   \frametitle{\texttt{Cursor.execute()} interface}
 
-  Be careful with escaping values, here is a common mistake:
-\begin{verbatim}
- cursor.execute(
-   "INSERT INTO Users (username) VALUES (%s)" % 
-   var_username)
-\end{verbatim}
+%%   These are \emph{also} incorrect.
 
-  These are \emph{also} incorrect:
+  Common mistake \#2:
 \begin{verbatim}
  cursor.execute(
    "INSERT INTO Users (username) VALUES ('%s')" % 
    var_username)
+\end{verbatim}
 
+\pause
+
+  Common mistake \#3:
+\begin{verbatim}
  cursor.execute(
    "INSERT INTO Users (username) VALUES (%s)" % 
    repr(var_username))
 \end{verbatim}
 
 \end{frame}
+
+  Common mistake \#4:
+\begin{verbatim}
+ cursor.execute(
+   "INSERT INTO Users (username) VALUES (%s)",
+   var_username)
+\end{verbatim}
 
 
 %-------------------------------------------------------------------------------
@@ -188,14 +221,34 @@ Problems:
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
+  \frametitle{Introduction}
+
+\vfill
+  With this work:
+  \begin{itemize}
+  \item Provide a simple extension that gets rid of the pitfalls
+  \item Make it much easier to write queries
+  \item A single pure Python module
+  \item Support a number of DBAPI implementations
+  \item Deals only with query writing
+  \end{itemize}
+
+\end{frame}
+
+
+
+%-------------------------------------------------------------------------------
+\begin{frame}[fragile]
   \frametitle{\texttt{Cursor.execute()} interface}
 
   When you write real-world queries (instead of Mickey-mouse example
   queries), it gets even messier:
 \begin{verbatim}
   cursor.execute("""
-    SELECT %s FROM %s WHERE %s > %%s LIMIT %s
-    """ % (','.join(columns), "Users", "age", 10),
+    SELECT %s FROM %s 
+      WHERE %s > %%s LIMIT %s
+    """ % (','.join(columns), "Users", 
+           "age", 10),
     (18,))
 \end{verbatim}
 
@@ -418,3 +471,35 @@ antiorm homepage: \\
 %===============================================================================
 \end{document}
 
+
+
+
+%% %-------------------------------------------------------------------------------
+%% \begin{frame}[fragile]
+%%   \frametitle{Motivation (Anti-ORM Activism)}
+%% 
+%%   \begin{center}
+%%     \includegraphics[width=0.8\textwidth]{noorms.png}
+%%   \end{center}
+%% \end{frame}
+%% 
+
+%% %-------------------------------------------------------------------------------
+%% \begin{frame}[fragile]
+%%   \frametitle{Motivation}
+%% 
+%%   \begin{quote}
+%%     While some like to use ORMs to interface with databases, we prefer to
+%%     maintain the full power of the SQL language, and instead focus on making the
+%%     building of SQL queries much more convenient.
+%%   \end{quote}
+%% 
+%%   \begin{itemize}
+%%   \item The domain-specific mini-language of SQL can never be fully replaced
+%%     with an API
+%%   \item ORMs hide the important facts: when does data transfer occur?  Does data
+%%     get queried multiple times?
+%%   \end{itemize}
+%% 
+%% \end{frame}
+%% 
