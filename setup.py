@@ -33,6 +33,6 @@ almost as good as the ORMs.  At least there is no magic, and it just works.
       author_email="blais@furius.ca",
       url="http://furius.ca/antiorm",
       package_dir = {'': 'lib/python'},
-      py_modules = ('antiorm',)
+      py_modules = ('antiorm', 'dbapiext', 'antipool', 'dbrelmgr')
      )
 
