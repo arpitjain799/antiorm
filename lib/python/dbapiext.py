@@ -4,15 +4,15 @@ An extention to DBAPI-2.0 for more easily building SQL statements.
 
 This extension allows you to call a DBAPI Cursor's execute method with a string
 that contains format specifiers for escaped and/or unescaped arguments.  Escaped
-arguments are specified using `` %S `` (capital S).  You can also mix positional
-and keyword arguments in the call, and this takes advantage of the Python call
-syntax niceties.  Also, lists passed in as parameters to be formatted are
-automatically detected and joined by commas (this works for both unescaped and
-escaped parameters-- lists to be escaped have their elements escaped
-individually).  In addition, if you pass in a dictionary corresponding to an
-escaped formatting specifier, the dictionary is rendered as a list of
-comma-separated <key> = <value> pairs, such as are suitable for an INSERT
-statement.
+arguments are specified using `` %X `` or `` %S `` (capital X or capital S).
+You can also mix positional and keyword arguments in the call, and this takes
+advantage of the Python call syntax niceties.  Also, lists passed in as
+parameters to be formatted are automatically detected and joined by commas (this
+works for both unescaped and escaped parameters-- lists to be escaped have their
+elements escaped individually).  In addition, if you pass in a dictionary
+corresponding to an escaped formatting specifier, the dictionary is rendered as
+a list of comma-separated <key> = <value> pairs, such as are suitable for an
+INSERT statement.
 
 For performance, the results of analysing and preparing the query is kept in a
 cache and reused on subsequence calls, similarly to the re or struct library.
@@ -93,8 +93,8 @@ class QueryAnalyzer(object):
     This is meant to be kept around or cached for efficiency.
     """
 
-    # Note: the 'S' formatting character is extra, from us.
-    re_fmt = '[#0 +-]?([0-9]+|\\*)?(\\.[0-9]*)?[hlL]?[diouxXeEfFgGcrsS]'
+    # Note: the 'X' and 'S' formatting characters is extra, from us.
+    re_fmt = '[#0 +-]?([0-9]+|\\*)?(\\.[0-9]*)?[hlL]?[diouxXeEfFgGcrsXS]'
 
     regexp = re.compile('%%(\\(([a-zA-Z0-9_]+)\\))?(%s)' % re_fmt)
 
@@ -155,7 +155,7 @@ class QueryAnalyzer(object):
                 if keyname is None:
                     keyname = '__p%d' % poscount.next()
                     self.positional.append(keyname)
-                if fmt == 'S':
+                if fmt in 'XS':
                     fmt = 's'
                     escaped = True
                 else:
@@ -441,7 +441,7 @@ class TestExtension(unittest.TestCase):
         s2 = s2.replace(' ', '').replace('\n', '')
         self.assertEquals(s1, s2)
 
-    def __test_basic(self):
+    def test_basic(self):
         "Basic replacement tests."
 
         cursor = TestCursor()
@@ -452,16 +452,20 @@ class TestExtension(unittest.TestCase):
             # With simple arguments.
             (' %s ', (simple,), dict(), " SIMPLE "),
             (' %S ', (simple,), dict(), " 'SIMPLE' "),
+            (' %X ', (simple,), dict(), " 'SIMPLE' "),
             (' %d ', (isimple,), dict(), " 42 "),
             (' %(k)s ', (), dict(k=simple), " SIMPLE "),
             (' %(k)d ', (), dict(k=isimple), " 42 "),
             (' %(k)S ', (), dict(k=simple), " 'SIMPLE' "),
+            (' %(k)X ', (), dict(k=simple), " 'SIMPLE' "),
 
             # Same but with lists.
             (' %s ', (seq,), dict(), " L1,L2,L3 "),
             (' %S ', (seq,), dict(), " 'L1','L2','L3' "),
+            (' %X ', (seq,), dict(), " 'L1','L2','L3' "),
             (' %(k)s ', (), dict(k=seq), " L1,L2,L3 "),
             (' %(k)S ', (), dict(k=seq), " 'L1','L2','L3' "),
+            (' %(k)X ', (), dict(k=seq), " 'L1','L2','L3' "),
 
             ):
 
@@ -476,7 +480,7 @@ class TestExtension(unittest.TestCase):
                 expect + expect)
 
 
-    def __test_misc(self):
+    def test_misc(self):
 
         d = date(2006, 07, 28)
 
@@ -557,7 +561,7 @@ class TestExtension(unittest.TestCase):
                 """)
 
 
-    def __test_paramstyles(self):
+    def test_paramstyles(self):
 
         d = date(2006, 07, 28)
 
