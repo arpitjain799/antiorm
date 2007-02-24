@@ -435,19 +435,21 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
   \end{itemize}
 
 \begin{verbatim}
-  UPDATE languages
-    SET id = 3, brazil = 'portuguese'
+  UPDATE Lang
+    SET country = 'brazil', language = 'portuguese'
+    WHERE id = 3
 \end{verbatim}
 \vfill
 
 \begin{verbatim}
-  values = {"id": 3,
-            "brazil": "portuguese"}
+  userid = 3
+  values = {"country": "brazil",
+            "language": "portuguese"}
   cursor.execute_f("""
 
-    UPDATE languages SET %X",
+    UPDATE Lang SET %X WHERE id = %X
 
-  """, values)
+  """, values, userid)
 \end{verbatim}
 
 \vfill
@@ -455,7 +457,6 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
 (Suggestion by D. Mertz)
 
 \end{frame}
-
 
 
 %-------------------------------------------------------------------------------
