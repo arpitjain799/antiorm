@@ -5,3 +5,4 @@
 Current
 =======
 
+* 2007-03-27: applied patch from Jeff Rush for unicode and set support to dbapiext.
