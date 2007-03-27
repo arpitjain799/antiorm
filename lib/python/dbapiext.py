@@ -148,7 +148,7 @@ class QueryAnalyzer(object):
 
         comps = self.components = []
         for x in gensplit(self.regexp, query):
-            if isinstance(x, str):
+            if isinstance(x, (str, unicode)):
                 comps.append(x)
             else:
                 keyname, fmt = x.group(2, 3)
@@ -171,7 +171,7 @@ class QueryAnalyzer(object):
         oss = StringIO()
         no = count(1)
         for x in self.components:
-            if isinstance(x, str):
+            if isinstance(x, (str, unicode)):
                 oss.write(x)
             else:
                 keyname, escaped, fmt = x
@@ -200,7 +200,7 @@ class QueryAnalyzer(object):
         dict_fmt = '%%(key)s = %s' % style_fmt
         output = []
         for x in self.components:
-            if isinstance(x, str):
+            if isinstance(x, (str, unicode)):
                 out = x
             else:
                 keyname, escaped, fmt = x
@@ -208,7 +208,7 @@ class QueryAnalyzer(object):
                 # Split keyword lists.
                 # Expand into lists of words.
                 value = kwds[keyname]
-                if isinstance(value, (tuple, list)):
+                if isinstance(value, (tuple, list, set)):
                     try:
                         words = listexpans[keyname] # Try cache.
                     except KeyError:
@@ -346,7 +346,7 @@ def execute_f(cursor_, query_, *args, **kwds):
     - Keyword arguments are used as expected to fill in missing values.
       Positional arguments are used to fill non-keyword placeholders.
 
-    - Arguments that are tuples or lists will be automatically joined by colons.
+    - Arguments that are tuples, lists or sets will be automatically joined by colons.
       If the corresponding formatting is %X or %(name)X, the members of the
       sequence will be escaped individually.
 
