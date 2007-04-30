@@ -14,7 +14,7 @@ To use connection pooling, you must first create a connection pool object::
                           database='test',
                           user='blais')
     antipool.initpool(pool)
-    
+
 where 'dbapi' is the module that you want to use that implements the DBAPI-2.0
 interface.  You need only create a single instance of this object for your
 process, and you could make database globally accessible.
@@ -108,6 +108,14 @@ antiorm tables with ConnOp(...)  and call the same methods on them minus the
 connection parameter.  The calls automatically acquire and release a connection
 object, and commit if relevant.
 
+
+Forking
+-------
+
+
+
+
+
 Convenience Decorators
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -148,7 +156,7 @@ __copyright__ = 'Copyright (C) 2006 Martin Blais. All Rights Reserved.'
 
 
 # stdlib imports
-import types, threading, gc, warnings
+import os, types, threading, gc, warnings
 from datetime import datetime, timedelta
 
 
@@ -216,7 +224,7 @@ def initfromopts(dbapi, opts):
         pvalue = getattr(opts, oname, None)
         if pvalue is not None:
             params[pname] = pvalue
-    
+
     pool = ConnectionPool(dbapi, **params)
     initpool(pool)
 
@@ -368,7 +376,7 @@ class ConnectionPoolInterface(object):
         Get access to the DBAPI-2.0 module.  This is necessary for some of the
         standard objects it provides, e.g. Binary().
         """
-    
+
     def connection(self, nbcursors=0, readonly=False):
         """
         Acquire a connection for read an write operations.
@@ -466,7 +474,7 @@ class ConnectionPool(ConnectionPoolInterface):
                 "connections between threads." % str(dbapi))
 
             # Disable the RO connection by force.
-            disable_ro = True 
+            disable_ro = True
 
         if disable_ro:
             # Disable create the unique RO connection.
@@ -481,7 +489,7 @@ class ConnectionPool(ConnectionPoolInterface):
             if not self._ro_shared:
                 self._maxconn -= 1
             assert self._maxconn > 0
-            
+
         self._minkeepsecs = options.pop('minkeepsecs', self._def_minkeepsecs)
 
         self._disable_rollback = options.pop('disable_rollback',
@@ -494,7 +502,7 @@ class ConnectionPool(ConnectionPoolInterface):
         self._debug_unreleased = options.pop('debug_unreleased', None)
         assert (self._debug_unreleased is None or
                 isinstance(self._debug_unreleased, types.FunctionType))
-                                  
+
         """Function to call when the connection wrappers are being closed as a
         result of being collected.  This is used to trigger some kind of check
         when you forget to release some connections explicitly."""
@@ -507,7 +515,7 @@ class ConnectionPool(ConnectionPoolInterface):
         threads.
         """
         return self._ro_shared
-        
+
     def module(self):
         """
         (See base class.)
@@ -521,9 +529,10 @@ class ConnectionPool(ConnectionPoolInterface):
         if self._debug:
             self._log_lock.acquire()
             curthread = threading.currentThread()
-            self._debug.write('   [%s] %s\n' % (curthread.getName(), msg))
+            self._debug.write('   [%s %s] %s\n' %
+                              (curthread.getName(), os.getpid(), msg))
             self._log_lock.release()
-        
+
     def _create_connection(self, read_only):
         """
         Create a new connection to the database.
@@ -540,10 +549,10 @@ class ConnectionPool(ConnectionPoolInterface):
         if self._isolation_level is not None:
             newconn.set_isolation_level(self._isolation_level)
         return newconn
-        
+
     def _close(self, conn):
         """
-        Create a new connection to the database.
+        Close the given connection for the database.
         """
         self._log('Connection Close')
         return conn.close()
@@ -582,7 +591,7 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         return self._add_cursors(
             ConnectionWrapperRO(self._get_connection_ro(), self), nbcursors)
-    
+
     def _acquire(self):
         """
         Acquire a connection from the pool, for read an write operations.
@@ -833,6 +842,22 @@ class ConnectionPool(ConnectionPoolInterface):
 
         return total_conn, pool_size
 
+    def forget_connections(self):
+        """
+        Forget all the existing connections and close the sockets.  This MUST be
+        called from a child process right after forking.
+        """
+        self._roconn_lock = threading.Lock()
+        self._pool_lock = threading.Condition(threading.RLock())
+
+        self._roconn = None
+        self._pool = []
+        self._nbconn = 0
+
+## FIXME: todo, close the file descriptors (unix ::close()
+## FIXME: continue this, you need to fix the test: test_fork.py
+
+
 
 #-------------------------------------------------------------------------------
 #
@@ -890,7 +915,14 @@ class ConnectionWrapperRO(object):
     def rollback(self):
         return self._getconn().rollback()
 
+    # Support for the context object.
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.release()
+        
 class ConnectionWrapperCrippled(ConnectionWrapperRO):
     """
     A wrapper object that releases to the pool.  It still does not provide a
@@ -906,6 +938,16 @@ class ConnectionWrapper(ConnectionWrapperCrippled):
     """
     def commit(self):
         return self._getconn().commit()
+
+    # Support for the context object.
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.commit()
+        else:
+            self.rollback()
+        self.release()
+
 
 class Error(Exception):
     """
