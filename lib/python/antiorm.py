@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 # pylint: disable-msg=W0302
 
@@ -114,24 +113,21 @@ __all__ = ['MormTable', 'MormObject', 'MormError',
            'MormDecoder', 'MormEncoder']
 
 
-#-------------------------------------------------------------------------------
-#
+
 class NODEF(object):
     """
     No-defaults constant.
     """
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormObject(object):
     """
     An instance of an initialized decoded row.
     This is just a dummy container for attributes.
     """
 
-#-------------------------------------------------------------------------------
-#
+
 class MormTable(object):
     """
     Class for declarations that relate to a table.
@@ -375,16 +371,14 @@ class MormTable(object):
         return cursor
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormError(Exception):
     """
     Error happening in this module.
     """
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormConv(object):
     """
     Base class for all automated type converters.
@@ -404,8 +398,7 @@ class MormConv(object):
         return value
 
 
-#-------------------------------------------------------------------------------
-#
+
 # Encoding from the DBAPI-2.0 client interface.
 dbapi_encoding = 'UTF-8'
 
@@ -450,8 +443,7 @@ class MormConvString(MormConv):
                 return vstr.decode(dbapi_encoding).encode(self.encoding)
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormEndecBase(object):
     """
     Base class for classes that accept list of tables.
@@ -477,8 +469,7 @@ class MormEndecBase(object):
         return ','.join(x.tname() for x in self.tables)
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormDecoder(MormEndecBase):
     """
     Decoder class that takes care of creating instances with appropriate
@@ -637,8 +628,7 @@ class MormDecoderIterator(object):
             return self.decoder.decode(row, obj, objcls)
 
 
-#-------------------------------------------------------------------------------
-#
+
 class MormEncoder(MormEndecBase):
     """
     Encoder class.  This class converts and contains a set of argument according

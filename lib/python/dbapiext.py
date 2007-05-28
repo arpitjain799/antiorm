@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 An extention to DBAPI-2.0 for more easily building SQL statements.
 
@@ -291,8 +290,7 @@ def gensplit(regexp, s):
     yield s[c:]
 
 
-#-------------------------------------------------------------------------------
-#
+
 _def_paramstyle = 'pyformat'
 
 def set_paramstyle(style_or_dbapi):
@@ -309,16 +307,14 @@ def set_paramstyle(style_or_dbapi):
                                'named', 'format', 'pyformat')
 
 
-#-------------------------------------------------------------------------------
-#
+
 qcompile = QueryAnalyzer
 """
 Compile a query in a compatible query analyzer.
 """
 
 
-#-------------------------------------------------------------------------------
-#
+
 # Query cache used to avoid having to analyze the same queries multiple times.
 # Hashed on the query string.
 _query_cache = {}
@@ -388,8 +384,6 @@ def execute_f(cursor_, query_, *args, **kwds):
     return cursor_.execute(cquery, ckwds)
 
 
-#===============================================================================
-# TESTS
 
 import unittest
 

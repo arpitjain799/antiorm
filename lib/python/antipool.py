@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (C) 2006 Martin Blais. All Rights Reserved.
 
 """
@@ -163,8 +162,7 @@ from datetime import datetime, timedelta
 __all__ = ('ConnectionPool', 'Error', 'dbpool', 'ConnOp')
 
 
-#-------------------------------------------------------------------------------
-#
+
 def dbpool():
     """
     Returns the unique database pool for this process.  Most often there is only
@@ -229,8 +227,7 @@ def initfromopts(dbapi, opts):
     initpool(pool)
 
 
-#-------------------------------------------------------------------------------
-#
+
 class ConnOp(object):
     """
     Wrapper class that provides a temporary interface for tables, that
@@ -322,7 +319,7 @@ class ConnOp(object):
     def delete(self, *args, **kwds):
         return self._run_with_conn('delete', *args, **kwds)
 
-#-------------------------------------------------------------------------------
+
 # Decorators
 
 def connected_ro(fun):
@@ -364,8 +361,7 @@ def connected(fun):
 
 
 
-#-------------------------------------------------------------------------------
-#
+
 class ConnectionPoolInterface(object):
     """
     Interface for a connection pool.  This is documentation for the public
@@ -402,8 +398,7 @@ class ConnectionPoolInterface(object):
         """
 
 
-#-------------------------------------------------------------------------------
-#
+
 class ConnectionPool(ConnectionPoolInterface):
     """
     A pool of database connections that can be shared by a number of threads.
@@ -859,8 +854,7 @@ class ConnectionPool(ConnectionPoolInterface):
 
 
 
-#-------------------------------------------------------------------------------
-#
+
 class ConnectionWrapperRO(object):
     """
     A wrapper object that behaves like a database connection for read-only
