@@ -683,7 +683,7 @@ class ConnectionPool(ConnectionPoolInterface):
                         conn.rollback()
                 except self.dbapi.Error:
                     # This connection is hosed somehow, we should ditch it.
-                    self._log('Ditching hosed RO connection: %s', conn)
+                    self._log('Ditching hosed RO connection: %s' % conn)
                     self._roconn = None
                     self._roconn_refs = 0
             else:
@@ -768,13 +768,13 @@ class ConnectionPool(ConnectionPoolInterface):
         """
         # Make sure that all connections lying about are collected before we go
         # on.
-	try:
+        try:
             gc.collect()
-	except TypeError:
-	    # We've detected that we're being called in an incomplete
-	    # finalization state, we just bail out, leaving the connections
+        except (TypeError, AttributeError):
+            # We've detected that we're being called in an incomplete
+            # finalization state, we just bail out, leaving the connections
             # to take care of themselves.
-	    return
+            return
 
         self._roconn_lock.acquire()
         self._pool_lock.acquire()
@@ -900,8 +900,8 @@ class ConnectionWrapperRO(object):
     def _release_impl(self, conn):
         self._connpool._release_ro(conn)
 
-    def cursor(self):
-        return self._getconn().cursor()
+    def cursor(self, *args, **kw):
+        return self._getconn().cursor(*args, **kw)
 
     def commit(self):
         raise Error("Error: You cannot commit on a read-only connection.")
