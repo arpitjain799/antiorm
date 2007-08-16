@@ -99,6 +99,14 @@ Note that if you forget to release the connections it does not create a leak, it
 only causes a slightly less efficient use of the connection resources.  No big
 deal.
 
+Using the 'with' statement
+--------------------------
+::
+
+    with conn, cursor = dbpool().connection(1):
+        ...
+
+
 Convenience for Single Operations with Anti-ORM
 -----------------------------------------------
 
