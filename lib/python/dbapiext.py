@@ -396,14 +396,16 @@ except ImportError:
 if ntuple:
     from operator import itemgetter
 
-    def execute_obj(curs, *args, **kwds):
+    def execute_obj(conn, *args, **kwds):
         """
         Run a query on the given connection or cursor and yield ntuples of the
         results.  'curs' can be either a Connection or a Cursor object.
         """
         # Convert to a cursor if necessary.
-        if not re.search('Cursor', curs.__class__.__name__, re.I):
-            curs = curs.cursor()
+        if re.search('Cursor', conn.__class__.__name__, re.I):
+            curs = conn
+        else:
+            curs = conn.cursor()
 
         # Execute the query.
         execute_f(curs, *args, **kwds)
