@@ -79,7 +79,7 @@ from itertools import izip, count
 from pprint import pprint, pformat
 
 
-__all__ = ('execute_f', 'qcompile', 'set_paramstyle')
+__all__ = ('execute_f', 'qcompile', 'set_paramstyle', 'execute_obj')
 
 
 class QueryAnalyzer(object):
@@ -180,7 +180,7 @@ class QueryAnalyzer(object):
                 else:
                     oss.write('%%(%s)%s' % (keyname, fmt))
         return oss.getvalue()
-    
+
     def apply(self, *args, **kwds):
         if len(args) != len(self.positional):
             raise TypeError('not enough arguments for format string')
@@ -193,7 +193,7 @@ class QueryAnalyzer(object):
         # Patch up the components into a string.
         listexpans = {} # cached list expansions.
         apply_kwds, delay_kwds = {}, self.style_argstype()
-        
+
         no = count(1)
         style_fmt = self.style_fmt
         dict_fmt = '%%(key)s = %s' % style_fmt
@@ -384,6 +384,39 @@ def execute_f(cursor_, query_, *args, **kwds):
     return cursor_.execute(cquery, ckwds)
 
 
+# Add support for ntuple wrapping (std in 2.6).
+try:
+    from collections import NamedTuple as ntuple
+except ImportError:
+    try:
+        from ntuple import NamedTuple as ntuple
+    except ImportError:
+        ntuple = None
+
+if ntuple:
+    from operator import itemgetter
+
+    def execute_obj(curs, *args, **kwds):
+        """
+        Run a query on the given connection or cursor and yield ntuples of the
+        results.  'curs' can be either a Connection or a Cursor object.
+        """
+        # Convert to a cursor if necessary.
+        if not re.search('Cursor', curs.__class__.__name__, re.I):
+            curs = curs.cursor()
+
+        # Execute the query.
+        execute_f(curs, *args, **kwds)
+
+        # Yield all the results wrapped up in an ntuple.
+        names = map(itemgetter(0), curs.description)
+        TupleCls = ntuple('Row', ' '.join(names))
+        for row in curs:
+            yield TupleCls(*row)
+else:
+    execute_obj = ImportError
+
+
 
 import unittest
 
@@ -563,7 +596,7 @@ class TestExtension(unittest.TestCase):
 
         query = '''
               Simple: %s  Escaped: %S
-              Kwd: %(bli)s KwdEscaped: %(bli)S  
+              Kwd: %(bli)s KwdEscaped: %(bli)S
             '''
         args = ('hansel', 'gretel')
         kwds = dict(bli='bethel')
@@ -573,7 +606,7 @@ class TestExtension(unittest.TestCase):
               Simple: hansel  Escaped: %(__p2)s
               Kwd: bethel KwdEscaped: %(bli)s
             """, {'__p2': 'gretel', 'bli': 'bethel'}),
-            
+
             'named': ("""
               Simple: hansel  Escaped: :__p2
               Kwd: bethel KwdEscaped: :bli
@@ -615,7 +648,7 @@ class TestExtension(unittest.TestCase):
 
     def test_dict(self):
         "Tests for passing in a dictionary argument."
-        
+
         cursor = TestCursor()
         data = {'brazil': 'portuguese',
                 'peru': 'spanish',
