@@ -73,6 +73,7 @@ Future Work
 
 # stdlib imports
 import re
+from itertools import starmap
 from StringIO import StringIO
 from datetime import date, datetime
 from itertools import izip, count
