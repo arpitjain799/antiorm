@@ -4,23 +4,18 @@
 Connection parameters for tests.
 """
 
-# stdlib imports
-import psycopg2 as dbapi
-
 # antiorm imports
 from antiorm import *
 
 
-#-------------------------------------------------------------------------------
-#
+
 connect_params = dict(database='test',
                       host='localhost',
                       user='blais',
                       password='pg')
 
 
-#-------------------------------------------------------------------------------
-#
+
 def prepare_testdb(conn):
     """
     Prepare a test database.

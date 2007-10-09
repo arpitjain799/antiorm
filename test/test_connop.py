@@ -7,7 +7,6 @@ Tests for Anti-ORM.
 """
 
 # stdlib imports
-from datetime import datetime
 import unittest
 
 # antiorm imports
@@ -17,8 +16,7 @@ from antiorm import *
 from dbsetup import *
 
 
-#-------------------------------------------------------------------------------
-#
+
 import antipool
 from antipool import ConnOp
 

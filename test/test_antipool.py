@@ -8,14 +8,12 @@ Tests for connection pool.
 # stdlib imports
 import threading
 from datetime import datetime, timedelta
-import unittest
 
 # antiorm imports
 from antipool import *
 
 
-#-------------------------------------------------------------------------------
-#
+
 names = ('martin', 'cyriaque', 'pierre', 'mathieu', 'marie-claude', 'eric'
          'normand', 'christine', 'emric')
 
@@ -253,7 +251,6 @@ def test():
     dbpool.finalize()
 
     interval = time_b - time_a
-    from pprint import pprint
     print 'Options:'
     for key, value in options.iteritems():
         print '  %s: %s' % (key, value)
@@ -280,7 +277,7 @@ test_schema = '''
 '''
 
 if __name__ == '__main__':
-    import sys, random, time, thread
+    import sys, random, time
     log_write = sys.stdout.write
     test()
 

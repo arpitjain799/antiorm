@@ -77,7 +77,7 @@ from itertools import starmap
 from StringIO import StringIO
 from datetime import date, datetime
 from itertools import izip, count
-from pprint import pprint, pformat
+from pprint import pprint
 
 
 __all__ = ('execute_f', 'qcompile', 'set_paramstyle', 'execute_obj')

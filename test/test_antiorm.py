@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 # pylint: disable-msg=W0302
 
@@ -17,8 +16,7 @@ from antiorm import *
 from dbsetup import *
 
 
-#-------------------------------------------------------------------------------
-#
+
 class TestMorm(unittest.TestCase):
     """
     Simple automated tests.

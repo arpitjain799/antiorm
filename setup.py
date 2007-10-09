@@ -6,7 +6,6 @@ Install script for the Anti-ORM library.
 
 __author__ = "Martin Blais <blais@furius.ca>"
 
-import sys
 from distutils.core import setup
 
 def read_version():
