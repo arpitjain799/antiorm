@@ -413,8 +413,7 @@ if ntuple:
         # Yield all the results wrapped up in an ntuple.
         names = map(itemgetter(0), curs.description)
         TupleCls = ntuple('Row', ' '.join(names))
-        for row in curs:
-            yield TupleCls(*row)
+        return starmap(TupleCls, curs)
 else:
     execute_obj = ImportError
 
