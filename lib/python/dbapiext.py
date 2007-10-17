@@ -73,7 +73,7 @@ Future Work
 
 # stdlib imports
 import re
-from itertools import starmap
+from itertools import starmap, imap
 from StringIO import StringIO
 from datetime import date, datetime
 from itertools import izip, count
@@ -352,7 +352,8 @@ def execute_f(cursor_, query_, *args, **kwds):
     Note that this function accepts a '_paramstyle' optional argument, to set
     which parameter style to use.
     """
-    if debug_convert:
+    debug = debug_convert or kwds.pop('__debug__', None)
+    if debug:
         print '\n' + '=' * 80
         print '\noriginal ='
         print query_
@@ -369,13 +370,13 @@ def execute_f(cursor_, query_, *args, **kwds):
             query_,
             paramstyle=kwds.pop('paramstyle', None))
 
-    if debug_convert:
+    if debug:
         print '\nquery analyzer =', str(q)
 
     # Translate this call into a compatible call to execute().
     cquery, ckwds = q.apply(*args, **kwds)
 
-    if debug_convert:
+    if debug:
         print '\ntransformed ='
         print cquery
         print '\nnewkwds ='
@@ -387,10 +388,10 @@ def execute_f(cursor_, query_, *args, **kwds):
 
 # Add support for ntuple wrapping (std in 2.6).
 try:
-    from collections import NamedTuple as ntuple
+    from collections import named_tuple as ntuple
 except ImportError:
     try:
-        from ntuple import NamedTuple as ntuple
+        from ntuple import named_tuple as ntuple
     except ImportError:
         ntuple = None
 
@@ -414,9 +415,9 @@ if ntuple:
         # Yield all the results wrapped up in an ntuple.
         names = map(itemgetter(0), curs.description)
         TupleCls = ntuple('Row', ' '.join(names))
-        return starmap(TupleCls, curs)
+        return starmap(TupleCls, imap(tuple, curs))
 else:
-    execute_obj = ImportError
+    execute_obj = None
 
 
 
