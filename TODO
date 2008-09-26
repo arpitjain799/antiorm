@@ -3,6 +3,11 @@
 ===================
 
 
+- dbapiext.py: Add examples on the web page that describes how to
+  clean up code.
+
+
+
 antipool:
 
 - Explain in more detail what happens if the DB server gets restarted and while
