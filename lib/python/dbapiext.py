@@ -669,6 +669,26 @@ class TestExtension(unittest.TestCase):
                  philipines = 'tagalog',
                  peru = 'spanish';       """)
 
+    def test_sqlite3(self):
+        import sqlite3 as dbapi
+        set_paramstyle(dbapi)
+        conn = dbapi.connect(':memory:')
+        curs = conn.cursor()
+        execute_f(curs, """
+           CREATE TABLE books (
+              author TEXT,
+              title TEXT,
+              PRIMARY KEY (title)
+           );
+        """)
+        execute_f(curs, """
+           INSERT INTO books VALUES (%S);
+        """, ("Tolstoy", "War and Peace"))
+
+        execute_f(curs, """
+           INSERT INTO books (author) VALUES (%S);
+        """, "Dostoyesvki")
+
 
 debug_convert = 0
 if __name__ == '__main__':
