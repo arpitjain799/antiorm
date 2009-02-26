@@ -205,13 +205,13 @@ SELECT * FROM Users WHERE username = 'ray''s cat'
     WHERE username = 'raymond'
 \end{verbatim}
 
-\begin{verbatim}
+\begin{semiverbatim}
 cursor.execute("""
 
-  SELECT %s, %s FROM Users WHERE username = %s
+  SELECT \textbf{%s, %s} FROM Users WHERE username = %s
 
   """, (col1, col2, name))  <--- will not work
-\end{verbatim}
+\end{semiverbatim}
 
 %% \vfill
 %% Produces invalid SQL:
@@ -236,13 +236,13 @@ cursor.execute("""
     WHERE username = 'raymond'
 \end{verbatim}
 
-\begin{verbatim}
+\begin{semiverbatim}
 cursor.execute("""
 
-  SELECT %s, %s FROM Users WHERE username = %%s
+  SELECT %s, %s FROM Users WHERE username = \textbf{%%s}
 
-  """ % (col1, col2), (name,))  <-- two steps!
-\end{verbatim}
+  """\textbf{ % }(col1, col2), (name,))  <-- two steps!
+\end{semiverbatim}
 
 \begin{itemize}
 \item Because of the string interpolation step, you have to use \verb=%%s= for
@@ -258,24 +258,24 @@ cursor.execute("""
   \frametitle{Lists and format-specifiers}
 
   Sometimes you want to render variable-length lists:
-\begin{verbatim}
+\begin{semiverbatim}
 cursor.execute("""
 
-  INSERT INTO Users (%s, %s) 
-             VALUES (%%s, %%s)
+  INSERT INTO Users (\textbf{%s, %s}) 
+             VALUES (\textbf{%%s, %%s})
 
   """ % ("email", "phone"), values)
-\end{verbatim}
+\end{semiverbatim}
 
 \vfill\pause
-\begin{verbatim}
+\begin{semiverbatim}
 cursor.execute("""
 
-  INSERT INTO Users (%s, %s, %s) 
-             VALUES (%%s, %%s, %%s)
+  INSERT INTO Users (\textbf{%s, %s, %s}) 
+             VALUES (\textbf{%%s, %%s, %%s})
 
   """ % ("email", "phone", "address"), values)
-\end{verbatim}
+\end{semiverbatim}
 
 \end{frame}
 
@@ -284,16 +284,16 @@ cursor.execute("""
 \begin{frame}[fragile]
   \frametitle{Lists and format-specifiers}
   
-\begin{verbatim}
+\begin{semiverbatim}
   cursor.execute("""
   
     INSERT INTO Users (%s) 
                VALUES (%s)
   
-    """ % (','.join(columns),
-           ','.join(["%%s"] * 2)), 
+    """ % (\textbf{','.join(columns)},
+           \textbf{','.join(["%%s"] * 2)}), 
     values)
-\end{verbatim}
+\end{semiverbatim}
 
 %% \vfill
 %% Heeeeelllppp!!
@@ -346,14 +346,14 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
 
 %-------------------------------------------------------------------------------
 \begin{frame}[fragile]
-  \frametitle{New format specifier (\%X)}
+  \frametitle{New format specifier (\%S)}
 
   We provide a replacement for \texttt{execute()}, and we introduce a new format
-  specifier for escaped arguments: \texttt{\%X} (capital X)
+  specifier for escaped arguments: \texttt{\%S} (capital S)
 
 \begin{verbatim}
  cursor.execute_f(
-   "INSERT INTO Users (username) VALUES (%X)",
+   "INSERT INTO Users (username) VALUES (%S)",
    name)
 \end{verbatim}
 
@@ -361,7 +361,7 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
   forced to use a tuple anymore:
 \begin{verbatim}
  cursor.execute_f(
-   "INSERT INTO Users (%s) VALUES (%X)",
+   "INSERT INTO Users (%s) VALUES (%S)",
    "username", name)
 \end{verbatim}
 
@@ -404,7 +404,7 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
  cursor.execute_f("""
 
    INSERT INTO Users (%s) 
-              VALUES (%X)
+              VALUES (%S)
 
   """, columns, values)
 \end{verbatim}
@@ -434,10 +434,11 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
   \item Values are escaped automatically
   \end{itemize}
 
+{\small
 \begin{verbatim}
-  UPDATE Lang
-    SET country = 'brazil', language = 'portuguese'
-    WHERE id = 3
+ UPDATE Lang
+   SET country = 'brazil', language = 'portuguese'
+   WHERE id = 3
 \end{verbatim}
 \vfill
 
@@ -447,15 +448,14 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
             "language": "portuguese"}
   cursor.execute_f("""
 
-    UPDATE Lang SET %X WHERE id = %X
+    UPDATE Lang SET %S WHERE id = %S
 
   """, values, userid)
 \end{verbatim}
+}
 
-\vfill
-
-(Suggestion by D. Mertz)
-
+%% \vfill
+%% (Suggestion by D. Mertz)
 \end{frame}
 
 
@@ -463,14 +463,14 @@ DBAPI's \texttt{Cursor.execute()} method interface is inconvenient to use!
 \begin{frame}[fragile]
   \frametitle{Keywords Arguments are Supported}
 
-\begin{verbatim}
+\begin{semiverbatim}
   cursor.execute_f("""
 
-     SELECT %(table)s FROM %s
-       WHERE id = %(id)X
+     SELECT \textbf{%(table)s} FROM %s
+       WHERE id = \textbf{%(id)S}
 
   """, column_names, table=tablename, id=42)
-\end{verbatim}
+\end{semiverbatim}
 
 \begin{itemize}
 \item Provide a useful way to recycle arguments \\
