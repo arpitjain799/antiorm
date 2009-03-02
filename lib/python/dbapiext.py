@@ -31,7 +31,7 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
 
   Run execute_f() with a cursor object and appropriate arguments::
 
-    execute_f(cursor, ' SELECT %s FROM %(t)s WHERE id = %X ', cols, id, t=table)
+    execute_f(cursor, ' SELECT %s FROM %(t)s WHERE id = %S ', cols, id, t=table)
 
   Ideally, we should be able to monkey-patch this method onto the cursor class
   of the DBAPI library (this may not be possible if it is an extension module).
@@ -41,12 +41,18 @@ http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
   performed at runtime.  If you want to do this explicitly, first compile your
   query, and execute it later with the resulting object, e.g.::
 
-    analq = qcompile(' SELECT %s FROM %(t)s WHERE id = %X ')
+    analq = qcompile(' SELECT %s FROM %(t)s WHERE id = %S ')
     ...
     analq.execute(cursor, cols, id, t=table)
 
 **Note to developers: this module contains tests, if you make any changes,
 please make sure to run and fix the tests.**
+
+
+Also, a formatting specifier is provided for where clauses: ``%A``, which joins
+its contained entries with ``AND``. The only accepted data types are list of
+pairs or a dictionary. Maybe we could provide an OR version (``%A`` and
+``%O``).
 
 
 Future Work
@@ -62,12 +68,6 @@ Future Work
 - Provide a simple test function that would allow people to test their queries
   without having to create a TestCursor.
 
-- (idea by D.Mertz):
-
-  A new formatting specifier should be provided for where clauses: ``%W``, which
-  would join its contained entries with ``AND``.  The only accepted data types
-  would be list of pairs or a dictionary.  Maybe we could provide an OR version
-  (``%AND`` and ``%OR``).
 
 """
 
@@ -93,8 +93,8 @@ class QueryAnalyzer(object):
     This is meant to be kept around or cached for efficiency.
     """
 
-    # Note: the 'X' and 'S' formatting characters is extra, from us.
-    re_fmt = '[#0 +-]?([0-9]+|\\*)?(\\.[0-9]*)?[hlL]?[diouxXeEfFgGcrsXS]'
+    # Note: the last few formatting characters are extra, from us.
+    re_fmt = '[#0 +-]?([0-9]+|\\*)?(\\.[0-9]*)?[hlL]?[diouxXeEfFgGcrsSAO]'
 
     regexp = re.compile('%%(\\(([a-zA-Z0-9_]+)\\))?(%s)' % re_fmt)
 
@@ -155,12 +155,21 @@ class QueryAnalyzer(object):
                 if keyname is None:
                     keyname = '__p%d' % poscount.next()
                     self.positional.append(keyname)
+                sep = ', '
                 if fmt in 'XS':
                     fmt = 's'
                     escaped = True
+                elif fmt in 'A':
+                    fmt = 's'
+                    escaped = True
+                    sep = ' AND '
+                elif fmt in 'O':
+                    fmt = 's'
+                    escaped = True
+                    sep = ' OR '
                 else:
                     escaped = False
-                comps.append( (keyname, escaped, fmt) )
+                comps.append( (keyname, escaped, sep, fmt) )
 
     def __str__(self):
         """
@@ -174,7 +183,7 @@ class QueryAnalyzer(object):
             if isinstance(x, (str, unicode)):
                 oss.write(x)
             else:
-                keyname, escaped, fmt = x
+                keyname, escaped, sep, fmt = x
                 if escaped:
                     oss.write(style_fmt % {'name': keyname,
                                            'no': no.next()})
@@ -203,7 +212,7 @@ class QueryAnalyzer(object):
             if isinstance(x, (str, unicode)):
                 out = x
             else:
-                keyname, escaped, fmt = x
+                keyname, escaped, sep, fmt = x
 
                 # Split keyword lists.
                 # Expand into lists of words.
@@ -236,6 +245,7 @@ class QueryAnalyzer(object):
                     value = [x[1] for x in items]
                     outfmt = [dict_fmt % {'key': k, 'name': word}
                               for word, (k, v) in izip(words, items)]
+
                 else:
                     words, value = (keyname,), (value,)
                     if escaped:
@@ -256,7 +266,7 @@ class QueryAnalyzer(object):
                     okwds.extend(value)
 
                 # Create formatting string.
-                out = ', '.join(outfmt)
+                out = sep.join(outfmt)
 
             output.append(out)
 
@@ -335,7 +345,7 @@ def execute_f(cursor_, query_, *args, **kwds):
 
     - By default, %s placeholders are not escaped.
 
-    - Use the %X or %(name)X placeholder to specify escaped strings.
+    - Use the %S or %(name)S placeholder to specify escaped strings.
 
     - You can specify positional arguments without having to place them in an
       extra tuple.
@@ -344,7 +354,7 @@ def execute_f(cursor_, query_, *args, **kwds):
       Positional arguments are used to fill non-keyword placeholders.
 
     - Arguments that are tuples, lists or sets will be automatically joined by colons.
-      If the corresponding formatting is %X or %(name)X, the members of the
+      If the corresponding formatting is %S or %(name)S, the members of the
       sequence will be escaped individually.
 
     See qcompile() for details.
@@ -421,9 +431,9 @@ else:
 
 
 
-import unittest
+#-------------------------------------------------------------------------------
 
-class TestCursor(object):
+class _TestCursor(object):
     """
     Fake cursor that fakes the escaped replacments like a real DBAPI cursor, but
     simply returns the final string.
@@ -459,6 +469,13 @@ class TestCursor(object):
         return result
 
 
+def _multi2one(s):
+    "Join a multi-line string in a single line."
+    s = re.sub('[ \n]+', ' ', s).strip()
+    return re.sub(', ', ',', s)
+
+
+import unittest
 class TestExtension(unittest.TestCase):
     """
     Tests for the extention functions.
@@ -467,14 +484,14 @@ class TestExtension(unittest.TestCase):
         """
         Compare two strings without considering the whitespace.
         """
-        s1 = s1.replace(' ', '').replace('\n', '')
-        s2 = s2.replace(' ', '').replace('\n', '')
+        s1 = _multi2one(s1)
+        s2 = _multi2one(s2)
         self.assertEquals(s1, s2)
 
     def test_basic(self):
         "Basic replacement tests."
 
-        cursor = TestCursor()
+        cursor = _TestCursor()
 
         simple, isimple, seq = 'SIMPLE', 42, ('L1', 'L2', 'L3')
         for query, args, kwds, expect in (
@@ -514,7 +531,7 @@ class TestExtension(unittest.TestCase):
 
         d = date(2006, 07, 28)
 
-        cursor = TestCursor()
+        cursor = _TestCursor()
 
         self.compare_nows(
             cursor.execute_f('''
@@ -595,7 +612,7 @@ class TestExtension(unittest.TestCase):
 
         d = date(2006, 07, 28)
 
-        cursor = TestCursor()
+        cursor = _TestCursor()
 
         query = '''
               Simple: %s  Escaped: %S
@@ -632,7 +649,8 @@ class TestExtension(unittest.TestCase):
             }
 
         for style, (estr, eargs) in test_data.iteritems():
-            qstr, qargs = qcompile(query, paramstyle=style).apply(*args, **kwds)
+            qstr, qargs = qcompile(query, paramstyle=style).apply(
+                *args, **kwds)
 
             self.compare_nows(qstr, estr)
             self.assertEquals(qargs, eargs)
@@ -652,7 +670,7 @@ class TestExtension(unittest.TestCase):
     def test_dict(self):
         "Tests for passing in a dictionary argument."
 
-        cursor = TestCursor()
+        cursor = _TestCursor()
         data = {'brazil': 'portuguese',
                 'peru': 'spanish',
                 'japan': 'japanese',
@@ -668,6 +686,34 @@ class TestExtension(unittest.TestCase):
                  japan = 'japanese',
                  philipines = 'tagalog',
                  peru = 'spanish';       """)
+
+    def test_and(self):
+        "Tests for passing in a dictionary argument."
+
+        cursor = _TestCursor()
+        keydata = {'udid': '11111111111111111111',
+                   'imgid': 17}
+        valuedata = {'rating': 9}
+
+        self.assertRaises(ValueError, execute_f,
+                          cursor, ' unescaped: %s ', keydata)
+
+        res = execute_f(cursor, ' UPDATE %s SET %S WHERE %A; ', 'mytable',
+                        valuedata, keydata)
+        self.compare_nows(res, """
+           UPDATE mytable
+             SET rating = 9
+             WHERE udid = '11111111111111111111' AND imgid = 17;
+        """)
+
+        res = execute_f(cursor, ' UPDATE %s SET %S WHERE %O; ', 'mytable',
+                        valuedata, keydata)
+        self.compare_nows(res, """
+           UPDATE mytable
+             SET rating = 9
+             WHERE udid = '11111111111111111111' OR imgid = 17;
+        """)
+
 
     def test_sqlite3(self):
         import sqlite3 as dbapi
@@ -692,6 +738,6 @@ class TestExtension(unittest.TestCase):
 
 debug_convert = 0
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main() # or use nosetests
 
 
