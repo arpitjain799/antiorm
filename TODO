@@ -2,6 +2,11 @@
    TODO: antiorm
 ===================
 
+- Check that dbapiext properly avoids creating a new stmt every time
+  (sends a constant stmt for a constant req).
+
+  - Cache the stmt making engine depending the types provided at
+    input, including list lengths.
 
 - dbapiext.py: Add examples on the web page that describes how to
   clean up code.
