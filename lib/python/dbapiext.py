@@ -453,7 +453,9 @@ class _TestCursor(object):
         variables.
         """
         for key, value in kwds.items():
-            if isinstance(value, str):
+            if isinstance(value, type(None)):
+                kwds[key] = 'NULL'
+            elif isinstance(value, str):
                 kwds[key] = repr(value)
             elif isinstance(value, unicode):
                 kwds[key] = repr(value.encode('utf-8'))
@@ -606,6 +608,19 @@ class TestExtension(unittest.TestCase):
                 (basename, photo1, photo2, photo3)
                 VALUES ('PHOTONAME', 'BIN1', 'BIN2', 'BIN3')
                 """)
+
+
+    def test_null(self):
+        cursor = _TestCursor()
+        self.compare_nows(
+            cursor.execute_f('''
+              INSERT INTO poodle (hair)
+                SET VALUES (%S)
+            ''', None),
+              """
+              INSERT INTO poodle (hair)
+                SET VALUES (NULL)
+              """)
 
 
     def test_paramstyles(self):
