@@ -15,6 +15,18 @@ def read_version():
         raise SystemExit(
             "Error: you must run setup from the root directory (%s)" % str(e))
 
+
+# Include VERSION without having to create MANIFEST.in
+# (I don't like all those files for setup.)
+def deco_add_defaults(fun):
+    def f(self):
+        self.filelist.append('VERSION')
+        return fun(self)
+    return f
+from distutils.command.sdist import sdist
+sdist.add_defaults = deco_add_defaults(sdist.add_defaults)
+
+
 setup(name="antiorm",
       version=read_version(),
       description=\
@@ -32,6 +44,7 @@ almost as good as the ORMs.  At least there is no magic, and it just works.
       author_email="blais@furius.ca",
       url="http://furius.ca/antiorm",
       package_dir = {'': 'lib/python'},
-      py_modules = ('antiorm', 'dbapiext', 'antipool', 'dbrelmgr')
+      py_modules = ('antiorm', 'dbapiext', 'antipool', 'dbrelmgr'),
+      ## data_files=[('Poodle', ['VERSION'])],
      )
 
