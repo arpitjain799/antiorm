@@ -398,12 +398,9 @@ def execute_f(cursor_, query_, *args, **kwds):
 
 # Add support for ntuple wrapping (std in 2.6).
 try:
-    from collections import named_tuple as ntuple
+    from collections import namedtuple as ntuple
 except ImportError:
-    try:
-        from ntuple import named_tuple as ntuple
-    except ImportError:
-        ntuple = None
+    ntuple = None
 
 if ntuple:
     from operator import itemgetter
