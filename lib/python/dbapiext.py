@@ -398,7 +398,39 @@ def execute_f(cursor_, query_, *args, **kwds):
 
 # Add support for ntuple wrapping (std in 2.6).
 try:
-    from collections import namedtuple as ntuple
+    from collections import namedtuple
+
+    # Patch from Catherine Devlin <catherine dot devlin at gmail dot com>:
+    #
+    #   "Column names with ``$`` and ``#`` are legal in SQL, but not in
+    #   namedtuple field names. This throws exceptions when you try to
+    #   execute_obj on queries with such column names. For the apps I write
+    #   (rooting around in Oracle data dictionary views), there's no avoiding
+    #   the ``$`` and ``#`` characters. Therefore, I added code to munge column
+    #   names until they are namedtuple-legal. Another alternative would be to
+    #   simply change the error message raised into something that would suggest
+    #   that the user use column aliases in the SQL statement to change column
+    #   names into something namedtuple-legal."  (2010-05-25)
+    from collections import _iskeyword
+    not_alphanumeric = re.compile('[^a-zA-Z0-9]')
+    def rename_duplicates(lst, append_char = '_'):
+        newlist = []
+        for itm in lst:
+            while itm in newlist:
+                itm += append_char
+            newlist.append(itm)
+        return newlist
+    def _fix_fieldname(fieldname):
+        "Ensure that a field name will pass collection.namedtuple's criteria."
+        fieldname = not_alphanumeric.sub('_', fieldname)
+        while _iskeyword(fieldname):
+            fieldname = fieldname + '_'
+        return fieldname
+    def ntuple(typename, field_names, verbose=False):
+        field_names = [_fix_fieldname(fn) for fn in field_names.split()]
+        field_names = rename_duplicates(field_names)
+        return namedtuple(typename, ' '.join(field_names), verbose)
+
 except ImportError:
     ntuple = None
 
