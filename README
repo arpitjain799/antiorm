@@ -40,8 +40,14 @@ library.  This is simple!
 Download
 ========
 
-- `Download </downloads/antiorm/>`_
-- `Download only antipool.py </antiorm/lib/python/antipool.py>`_
+A Mercurial repository can be found at:
+
+  https://hg.furius.ca/public/antiorm/
+
+`Click here for download instructions. </web-furius/downloading.html>`_
+
+
+`Download only antipool.py </antiorm/lib/python/antipool.py>`_
 
 
 Copyright and License

@@ -25,7 +25,7 @@ extension to tbe DBAPI-2.0.)
           syntaxes.
 
 For more details and motivation, see the accompanying explanation document at
-http://furius.ca/pubcode/pub/conf/common/lib/python/dbapiext.html
+http://furius.ca/pubcode/pub/conf/lib/python/dbapiext.html
 
 5-minute usage instructions:
 
