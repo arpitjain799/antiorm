@@ -257,7 +257,7 @@ class MormTable(object):
         Convenience method that gets a single object by its primary key.
         """
         cons, args = [], []
-        for colname, colvalue in constraints.iteritems():
+        for colname, colvalue in list(constraints.items()):
             cons.append('%s = %%s' % colname)
             args.append(colvalue)
 
@@ -645,7 +645,7 @@ class MormEncoder(MormEndecBase):
         """Encoded values of all the fields of the encoder."""
 
         # Set column names and values, converting if necessary.
-        for cname, cvalue in fields.iteritems():
+        for cname, cvalue in list(fields.items()):
             self.colnames.append(cname)
 
             # Apply converter to value if necessary
@@ -701,7 +701,7 @@ class MormEncoder(MormEndecBase):
 
         sql = ("INSERT INTO %s (%s) VALUES (%s) %s" %
                (self.table(), self.cols(), self.plhold(), cond))
-        cursor.execute(sql, self.values() + list(args))
+        cursor.execute(sql, list(self.values()) + list(args))
 
         return cursor
 
@@ -725,7 +725,7 @@ class MormEncoder(MormEndecBase):
         cursor = conn.cursor()
 
         sql = "UPDATE %s SET %s %s" % (self.table(), self.set(), cond)
-        cursor.execute(sql, self.values() + list(args))
+        cursor.execute(sql, list(self.values()) + list(args))
 
         return cursor
 

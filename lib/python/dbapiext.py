@@ -73,14 +73,59 @@ Future Work
 
 # stdlib imports
 import re
-from itertools import starmap, imap
-from StringIO import StringIO
 from datetime import date, datetime
-from itertools import izip, count
+from itertools import starmap
+from itertools import count
 from pprint import pprint
+
+# These imports only work in Python 2.x, but the built-ins are fine in 3.x.
+try:
+    from itertools import imap
+    from itertools import izip
+except ImportError:
+    imap = map
+    izip = zip
+
+# The first module is Python 2.x, the second is 3.x.
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 __all__ = ('execute_f', 'qcompile', 'set_paramstyle', 'execute_obj')
+
+
+# Create aliases for Python 3.x compatibility
+try:
+    xrange
+except NameError:
+    xrange = range
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
+# Convenince function since Python 3.x has new syntax for next
+def _next(i):
+    try:
+        return i.next()
+    except AttributeError:
+        return next(i)
+
+# Ditto for dictionary iterators
+def _iteritems(d):
+    try:
+        return d.iteritems()
+    except AttributeError:
+        return d.items()
+
+def _iterkeys(d):
+    try:
+        return d.iterkeys()
+    except AttributeError:
+        return d.keys()
 
 
 class QueryAnalyzer(object):
@@ -153,7 +198,7 @@ class QueryAnalyzer(object):
             else:
                 keyname, fmt = x.group(2, 3)
                 if keyname is None:
-                    keyname = '__p%d' % poscount.next()
+                    keyname = '__p%d' % _next(poscount)
                     self.positional.append(keyname)
                 sep = ', '
                 if fmt in 'XS':
@@ -186,7 +231,7 @@ class QueryAnalyzer(object):
                 keyname, escaped, sep, fmt = x
                 if escaped:
                     oss.write(style_fmt % {'name': keyname,
-                                           'no': no.next()})
+                                           'no': _next(no)})
                 else:
                     oss.write('%%(%s)%s' % (keyname, fmt))
         return oss.getvalue()
@@ -228,7 +273,7 @@ class QueryAnalyzer(object):
 
                     if escaped:
                         outfmt = [style_fmt %
-                                  {'name': x, 'no': no.next()} for x in words]
+                                  {'name': x, 'no': _next(no)} for x in words]
                     else:
                         outfmt = ['%%(%s)%s' % (x, fmt) for x in words]
 
@@ -240,7 +285,7 @@ class QueryAnalyzer(object):
                                          "an SQL statement without escaping.")
 
                     # Convert dict in a list of comma-separated 'name=value' pairs.
-                    items = value.items()
+                    items = list(value.items())
                     words = ['%s_key_%s__' % (keyname, x[0]) for x in items]
                     value = [x[1] for x in items]
                     outfmt = [dict_fmt % {'key': k, 'name': word}
@@ -249,7 +294,7 @@ class QueryAnalyzer(object):
                 else:
                     words, value = (keyname,), (value,)
                     if escaped:
-                        outfmt = [style_fmt % {'name': keyname, 'no': no.next()}]
+                        outfmt = [style_fmt % {'name': keyname, 'no': _next(no)}]
                     else:
                         outfmt = ['%%(%s)%s' % (keyname, fmt)]
 
@@ -364,12 +409,12 @@ def execute_f(cursor_, query_, *args, **kwds):
     """
     debug = debug_convert or kwds.pop('__debug__', None)
     if debug:
-        print '\n' + '=' * 80
-        print '\noriginal ='
-        print query_
-        print '\nargs ='
+        print('\n' + '=' * 80)
+        print('\noriginal =')
+        print(query_)
+        print('\nargs =')
         pprint(args)
-        print '\nkwds ='
+        print('\nkwds =')
         pprint(kwds)
 
     # Get the cached query analyzer or create one.
@@ -381,15 +426,15 @@ def execute_f(cursor_, query_, *args, **kwds):
             paramstyle=kwds.pop('paramstyle', None))
 
     if debug:
-        print '\nquery analyzer =', str(q)
+        print('\nquery analyzer =', str(q))
 
     # Translate this call into a compatible call to execute().
     cquery, ckwds = q.apply(*args, **kwds)
 
     if debug:
-        print '\ntransformed ='
-        print cquery
-        print '\nnewkwds ='
+        print('\ntransformed =')
+        print(cquery)
+        print('\nnewkwds =')
         pprint(ckwds)
 
     # Execute the transformed query.
@@ -452,7 +497,7 @@ if ntuple:
         execute_f(curs, *args, **kwds)
 
         # Yield all the results wrapped up in an ntuple.
-        names = map(itemgetter(0), curs.description)
+        names = list(map(itemgetter(0), curs.description))
         TupleCls = ntuple('Row', ' '.join(names))
         return starmap(TupleCls, imap(tuple, curs))
 else:
@@ -481,7 +526,7 @@ class _TestCursor(object):
         intuitive, to view the completed queries without the replacement
         variables.
         """
-        for key, value in kwds.items():
+        for key, value in list(kwds.items()):
             if isinstance(value, type(None)):
                 kwds[key] = 'NULL'
             elif isinstance(value, str):
@@ -494,8 +539,8 @@ class _TestCursor(object):
         result = query % kwds
 
         if debug_convert:
-            print '\n--- 5. after full replacement (fake dbapi application)'
-            print result
+            print('\n--- 5. after full replacement (fake dbapi application)')
+            print(result)
 
         return result
 
@@ -560,7 +605,7 @@ class TestExtension(unittest.TestCase):
 
     def test_misc(self):
 
-        d = date(2006, 07, 28)
+        d = date(2006, 7, 28)
 
         cursor = _TestCursor()
 
@@ -654,7 +699,7 @@ class TestExtension(unittest.TestCase):
 
     def test_paramstyles(self):
 
-        d = date(2006, 07, 28)
+        d = date(2006, 7, 28)
 
         cursor = _TestCursor()
 
@@ -692,7 +737,7 @@ class TestExtension(unittest.TestCase):
             """, ['gretel', 'bethel']),
             }
 
-        for style, (estr, eargs) in test_data.iteritems():
+        for style, (estr, eargs) in _iteritems(test_data):
             qstr, qargs = qcompile(query, paramstyle=style).apply(
                 *args, **kwds)
 
@@ -701,15 +746,15 @@ class TestExtension(unittest.TestCase):
 
         # Visual debugging.
         print_it = 0
-        for style in test_data.iterkeys():
+        for style in _iterkeys(test_data):
             qanal = qcompile("""
               %S %(c1)S %S %S %(c2)S
             """, paramstyle=style)
 
             qstr, qargs = qanal.apply(1, 2, 3, c1='CC1', c2='CC2')
             if print_it:
-                print qstr
-                print qargs
+                print(qstr)
+                print(qargs)
 
     def test_dict(self):
         "Tests for passing in a dictionary argument."

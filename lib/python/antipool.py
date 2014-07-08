@@ -170,6 +170,12 @@ from datetime import datetime, timedelta
 __all__ = ('ConnectionPool', 'Error', 'dbpool', 'ConnOp')
 
 
+# Create an alias for Python 3.x compatibility
+try:
+    xrange
+except NameError:
+    xrange = range
+
 
 def dbpool():
     """
@@ -546,7 +552,7 @@ class ConnectionPool(ConnectionPoolInterface):
             params = params.copy()
             params['user'] = self._user_ro
 
-        newconn = apply(self.dbapi.connect, (), params)
+        newconn = self.dbapi.connect(*(), **params)
 
         # Set the isolation level if specified in the options.
         if self._isolation_level is not None:
