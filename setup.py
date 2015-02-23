@@ -47,8 +47,8 @@ almost as good as the ORMs.  At least there is no magic, and it just works.
       author="Martin Blais",
       author_email="blais@furius.ca",
       url="http://furius.ca/antiorm",
+      download_url="http://bitbucket.org/blais/antiorm",
       package_dir = {'': 'lib/python'},
       py_modules = ('antiorm', 'dbapiext', 'antipool', 'dbrelmgr'),
       ## data_files=[('Poodle', ['VERSION'])],
      )
-
