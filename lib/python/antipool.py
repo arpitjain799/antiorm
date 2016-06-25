@@ -723,6 +723,7 @@ class ConnectionPool(ConnectionPoolInterface):
                 # Oopsy, this connection is hosed somehow.  We need to ditch it.
                 self._log('Ditching hosed connection: %s' % conn)
                 conn = None
+                self._nbconn -= 1
                 return
 
             assert conn is not self._roconn # Sanity check.
