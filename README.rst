@@ -42,7 +42,7 @@ Download
 
 A Mercurial repository can be found at:
 
-  http://bitbucket.org/blais/antiorm
+  http://github.com/blais/antiorm
 
 
 `Download only antipool.py </antiorm/lib/python/antipool.py>`_
